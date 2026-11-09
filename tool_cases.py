@@ -154,6 +154,40 @@ def messages(case, tool_names):
             {"role": "user", "content": json.dumps(payload, separators=(",", ":"))}]
 
 
+# ---------------------------------------------------------------- Chế độ "native" (tool-calling chuẩn)
+# Định dạng ở trên (nhét tool vào JSON của tin nhắn user + khuôn JSON tự chế) KHÔNG phải định dạng model được
+# huấn luyện. Kiểm chứng: Qwen3-1.7B Q8 được 0/12 câu cần tool với định dạng cũ, nhưng 10/12 với native.
+# Native = đưa tool qua tham số `tools` của API, llama-server (--jinja) dùng chat template của chính model.
+NATIVE_SYSTEM = ("You supervise a conveyor line. Current machine state: {state}. "
+                 "Call a tool only when one of the tools can do what the user asks; otherwise answer in one short sentence.")
+
+
+def native_request(case, tool_names):
+    """(messages, tools) cho chế độ native."""
+    tools = [t for t in TOOLS if t["function"]["name"] in tool_names]
+    state = {k: v for k, v in case["context"].items() if k != "user_prompt"}
+    msgs = [{"role": "system", "content": NATIVE_SYSTEM.format(state=json.dumps(state, separators=(",", ":")))},
+            {"role": "user", "content": case["context"]["user_prompt"]}]
+    return msgs, tools
+
+
+def score_native(case, answer):
+    """Chấm kết quả srv.ask(..., tools=...): chuyển tool_calls về khuôn cũ rồi dùng chung hàm score()."""
+    calls = answer.get("tool_calls") or []
+    call = None
+    if calls:
+        try:
+            args = calls[0]["arguments"]
+            args = json.loads(args) if isinstance(args, str) and args.strip() else (args or {})
+            call = {"tool_name": calls[0]["name"], "arguments": args if isinstance(args, dict) else {}}
+        except (json.JSONDecodeError, KeyError, TypeError):
+            return {"valid": False, "tool_ok": False, "args_ok": False, "over_trigger": case["tool"] is None,
+                    "ok": False}
+    raw = json.dumps({"action_type": "TOOL_REQUEST" if call else "DIRECT_ANSWER", "tool_call": call,
+                      "response_text": answer.get("text") or ""})
+    return score(case, raw)
+
+
 # ---------------------------------------------------------------- Chấm điểm
 def score(case, raw):
     """Trả về dict True/False: JSON hợp lệ, đúng công cụ, đúng tham số, gọi thừa công cụ."""

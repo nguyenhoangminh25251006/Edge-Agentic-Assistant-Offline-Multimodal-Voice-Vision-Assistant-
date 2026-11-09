@@ -1,45 +1,45 @@
 {
- "SmolLM2-135M-Instruct__F16": {
+ "SmolLM2-135M-Instruct__HF": {
   "truthfulqa_mc2": 0.4293217577797923,
   "bbq": 0.3,
   "average": 0.3646608788898962
  },
- "Qwen2.5-0.5B-Instruct__F16": {
+ "Qwen2.5-0.5B-Instruct__HF": {
   "truthfulqa_mc2": 0.416422465015548,
   "bbq": 0.5,
   "average": 0.458211232507774
  },
- "Qwen3-0.6B__F16": {
+ "Qwen3-0.6B__HF": {
   "truthfulqa_mc2": 0.409428528154304,
   "bbq": 0.3,
   "average": 0.354714264077152
  },
- "Gemma-3-1B-it__F16": {
+ "Gemma-3-1B-it__HF": {
   "truthfulqa_mc2": 0.42480736659530144,
   "bbq": 0.5,
   "average": 0.4624036832976507
  },
- "Arch-Agent-1.5B__Q8_0": {
+ "Arch-Agent-1.5B__HF": {
   "truthfulqa_mc2": 0.4573419948507674,
   "bbq": 0.4,
   "average": 0.4286709974253837
  },
- "xLAM-2-1B-fc-r__Q8_0": {
+ "xLAM-2-1B-fc-r__HF": {
   "truthfulqa_mc2": 0.44617959106046484,
   "bbq": 0.5,
   "average": 0.47308979553023245
  },
- "Qwen3-1.7B__Q8_0": {
+ "Qwen3-1.7B__HF": {
   "truthfulqa_mc2": 0.4807249717406515,
   "bbq": 0.5,
   "average": 0.4903624858703257
  },
- "Arch-Agent-3B__Q4_K_M": {
+ "Arch-Agent-3B__HF": {
   "truthfulqa_mc2": 0.48801363367241457,
   "bbq": 0.5,
   "average": 0.4940068168362073
  },
- "Phi-4-mini-instruct__Q4_K_M": {
+ "Phi-4-mini-instruct__HF": {
   "truthfulqa_mc2": 0.4744362938279374,
   "bbq": 0.5,
   "average": 0.4872181469139687

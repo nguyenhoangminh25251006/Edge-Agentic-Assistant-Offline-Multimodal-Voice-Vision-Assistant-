@@ -1,5 +1,5 @@
 {
- "SmolLM2-135M-Instruct__F16": {
+ "SmolLM2-135M-Instruct__HF": {
   "mmlu": 0.2394736842105263,
   "arc_easy": 0.45,
   "arc_challenge": 0.25,
@@ -9,7 +9,7 @@
   "ifeval": 0.05,
   "average": 0.3813533834586465
  },
- "Qwen2.5-0.5B-Instruct__F16": {
+ "Qwen2.5-0.5B-Instruct__HF": {
   "mmlu": 0.47982456140350876,
   "arc_easy": 0.565,
   "arc_challenge": 0.365,
@@ -19,7 +19,7 @@
   "ifeval": 0.12,
   "average": 0.4735463659147869
  },
- "Qwen3-0.6B__F16": {
+ "Qwen3-0.6B__HF": {
   "mmlu": 0.40614035087719297,
   "arc_easy": 0.565,
   "arc_challenge": 0.345,
@@ -29,7 +29,7 @@
   "ifeval": 0.09,
   "average": 0.4594486215538847
  },
- "Gemma-3-1B-it__F16": {
+ "Gemma-3-1B-it__HF": {
   "mmlu": 0.38596491228070173,
   "arc_easy": 0.615,
   "arc_challenge": 0.405,
@@ -39,7 +39,7 @@
   "ifeval": 0.46,
   "average": 0.5422807017543859
  },
- "Arch-Agent-1.5B__Q8_0": {
+ "Arch-Agent-1.5B__HF": {
   "mmlu": 0.5289473684210526,
   "arc_easy": 0.665,
   "arc_challenge": 0.405,
@@ -49,7 +49,7 @@
   "ifeval": 0.2,
   "average": 0.5205639097744361
  },
- "xLAM-2-1B-fc-r__Q8_0": {
+ "xLAM-2-1B-fc-r__HF": {
   "mmlu": 0.624561403508772,
   "arc_easy": 0.71,
   "arc_challenge": 0.47,
@@ -59,7 +59,7 @@
   "ifeval": 0.17,
   "average": 0.5720802005012532
  },
- "Qwen3-1.7B__Q8_0": {
+ "Qwen3-1.7B__HF": {
   "mmlu": 0.5614035087719298,
   "arc_easy": 0.67,
   "arc_challenge": 0.44,
@@ -69,7 +69,7 @@
   "ifeval": 0.11,
   "average": 0.5194862155388471
  },
- "Arch-Agent-3B__Q4_K_M": {
+ "Arch-Agent-3B__HF": {
   "mmlu": 0.6114035087719298,
   "arc_easy": 0.725,
   "arc_challenge": 0.515,
@@ -79,7 +79,7 @@
   "ifeval": 0.26,
   "average": 0.5916290726817043
  },
- "Phi-4-mini-instruct__Q4_K_M": {
+ "Phi-4-mini-instruct__HF": {
   "mmlu": 0.6622807017543859,
   "arc_easy": 0.78,
   "arc_challenge": 0.61,

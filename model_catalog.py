@@ -28,7 +28,8 @@ BASE_MODELS = {
     "Qwen3-0.6B": dict(hf_repo="Qwen/Qwen3-0.6B", params_b=0.6),
     "Gemma-3-1B-it": dict(hf_repo="google/gemma-3-1b-it", params_b=1.0, gated=True, full="bf16"),
     "Arch-Agent-1.5B": dict(hf_repo="katanemo/Arch-Agent-1.5B", params_b=1.5),
-    "xLAM-2-1B-fc-r": dict(hf_repo="Salesforce/xLAM-2-1b-fc-r", params_b=1.0),
+    # Tên "1b" nhưng thực tế ~1.54 tỉ tham số (file F16 = 3.09 GB, giống Arch-Agent-1.5B)
+    "xLAM-2-1B-fc-r": dict(hf_repo="Salesforce/xLAM-2-1b-fc-r", params_b=1.54),
     "Qwen3-1.7B": dict(hf_repo="Qwen/Qwen3-1.7B", params_b=1.7),
     "Arch-Agent-3B": dict(hf_repo="katanemo/Arch-Agent-3B", params_b=3.0),
     "Phi-4-mini-instruct": dict(hf_repo="microsoft/Phi-4-mini-instruct", params_b=3.8),
@@ -54,6 +55,16 @@ CONFIGS = [
     # nén mạnh
     ("Arch-Agent-3B", "Q4_K_M"),
     ("Phi-4-mini-instruct", "Q4_K_M"),
+    # Ứng viên THẬT cho UNO Q: model nhỏ + nén. Đây là nhóm chạy được trên board (RAM ~1.5 GB cho SLM,
+    # 4 nhân Cortex-A53), nên phải có trong benchmark chứ không chỉ đo bản F16.
+    ("Qwen2.5-0.5B-Instruct", "Q8_0"),
+    ("Qwen2.5-0.5B-Instruct", "Q4_K_M"),
+    ("Qwen3-0.6B", "Q8_0"),
+    ("Qwen3-0.6B", "Q4_K_M"),
+    ("Gemma-3-1B-it", "Q4_K_M"),
+    ("Arch-Agent-1.5B", "Q4_K_M"),
+    ("xLAM-2-1B-fc-r", "Q4_K_M"),
+    ("Qwen3-1.7B", "Q4_K_M"),
 ]
 
 # Optional: {(base, quant): (hf_repo, filename)} to download instead of building.
@@ -143,3 +154,21 @@ def ensure_gguf(base, quant, llama_cpp_dir="./llama.cpp", cache_dir=CACHE_DIR):
 
 def gguf_size_mb(path):
     return round(Path(path).stat().st_size / (1024 * 1024), 1)
+
+
+# Số byte trung bình cho 1 tham số ở mỗi mức nén (xấp xỉ, đã tính phần embedding/metadata)
+_BYTES_PER_PARAM = {"F16": 2.0, "Q8_0": 1.06, "Q4_K_M": 0.6}
+
+
+def check_gguf_size(base, quant, cache_dir=CACHE_DIR, tolerance=0.35):
+    """Kiểm tra file GGUF có kích thước hợp lý không (phát hiện file tải/convert dở dang).
+
+    Trả về (ok, size_mb, expected_mb). Ví dụ lỗi đã gặp: Arch-Agent-3B.F16.gguf chỉ 1.8 GB
+    trong khi 3B tham số x 2 byte phải ~6 GB -> file bị cắt cụt, phải xoá và tạo lại.
+    """
+    path = gguf_path(base, quant, cache_dir)
+    if not path.is_file():
+        return False, 0.0, None
+    expected = BASE_MODELS[base]["params_b"] * 1e9 * _BYTES_PER_PARAM[quant] / 2**20
+    size = gguf_size_mb(path)
+    return abs(size - expected) / expected <= tolerance, size, round(expected)

@@ -57,26 +57,62 @@ def all_configs():
     return cfgs
 
 
+def base_configs():
+    """Một cấu hình cho mỗi model GỐC (trọng số Hugging Face, chưa nén), dùng cho notebook 01/02/06.
+
+    Các bài lm-eval chạy bằng transformers trên trọng số gốc, KHÔNG chạy trên file GGUF đã nén.
+    Vì vậy kết quả được lưu với id "<model>__HF" và nhãn "(HF gốc)" để không bị nhầm thành điểm của Q4/Q8.
+    """
+    seen = {}
+    for c in all_configs():
+        if c["name"] not in seen:
+            seen[c["name"]] = {**c, "id": f"{c['name']}__HF", "quant": "F16", "bits": 16,
+                               "label": f"{c['name']} (HF gốc)"}
+    return list(seen.values())
+
+
 # ===================================================================== 2. Bật model và đo RAM
 class _RamMeter:
-    """Đo RAM lớn nhất mà tiến trình model đã dùng."""
+    """Đo RAM lớn nhất mà tiến trình model (llama-server) đã dùng.
+
+    Chỉ đo đúng tiến trình server (không cộng tiến trình con / Python). Trên Windows lấy thêm
+    `peak_wset` do hệ điều hành ghi lại, nên không bỏ sót đỉnh ngắn giữa 2 lần lấy mẫu.
+    """
 
     def __init__(self, pid):
         self.pid, self.peak_mb, self._stop = pid, 0.0, threading.Event()
+        try:
+            self._proc = psutil.Process(pid)
+        except psutil.Error:
+            self._proc = None
+        self._sample()                 # có ngay số RAM sau khi nạp model
         threading.Thread(target=self._loop, daemon=True).start()
+
+    def _sample(self):
+        if self._proc is None:
+            return
+        try:
+            mi = self._proc.memory_info()
+            mb = max(mi.rss, getattr(mi, "peak_wset", 0)) / 2**20
+            self.peak_mb = max(self.peak_mb, mb)
+        except psutil.Error:
+            pass
 
     def _loop(self):
         while not self._stop.is_set():
-            try:
-                p = psutil.Process(self.pid)
-                rss = p.memory_info().rss + sum(c.memory_info().rss for c in p.children(recursive=True))
-                self.peak_mb = max(self.peak_mb, rss / 2**20)
-            except psutil.Error:
-                pass
-            time.sleep(0.25)
+            self._sample()
+            time.sleep(0.1)
 
     def stop(self):
+        self._sample()                 # lấy mẫu lần cuối trước khi server tắt
         self._stop.set()
+
+
+def ram_suspicious(ram_mb, file_mb, n_ctx=2048):
+    """True nếu số RAM đo được vô lý so với kích thước file model (dấu hiệu đo sai)."""
+    if not ram_mb or not file_mb:
+        return False
+    return ram_mb > 2.0 * file_mb + 1024 + n_ctx / 2
 
 
 class Server:
@@ -87,18 +123,30 @@ class Server:
         self._http = requests.Session()
         self._http.trust_env = False        # tránh proxy hệ thống chặn kết nối nội bộ
 
-    def ask(self, messages, grammar=None, max_tokens=200):
+    def ask(self, messages, grammar=None, max_tokens=200, cache_prompt=False, tools=None):
         """Hỏi model 1 câu. Trả về chữ trả lời + thời gian (giây).
 
         grammar: luật ép model chỉ được viết JSON hợp lệ (GBNF của llama.cpp).
+        cache_prompt: True = giữ lại phần prompt giống lần trước (system prompt + danh sách tool),
+                      đúng như khi triển khai thật. False = đo trường hợp xấu nhất (prompt nguội).
+        tools: danh sách tool theo chuẩn OpenAI. Khi có, tool được đưa vào prompt bằng CHAT TEMPLATE của
+               chính model (định dạng model đã được huấn luyện) và kết quả nằm ở "tool_calls".
         """
         messages = [dict(m) for m in messages]
-        if "Qwen3" in self.cfg["name"] and grammar is None:     # tắt chế độ "suy nghĩ dài" của Qwen3
-            messages[-1]["content"] += " /no_think"
-        body = {"messages": messages, "max_tokens": max_tokens, "temperature": 0.0, "stream": True,"cache_prompt": False}
+        body = {"messages": messages, "max_tokens": max_tokens, "temperature": 0.0, "stream": True,
+                "cache_prompt": cache_prompt}
+        if "Qwen3" in self.cfg["name"]:
+            # Tắt chế độ "suy nghĩ" của Qwen3 cho MỌI câu (trước đây chỉ tắt khi không có grammar).
+            # enable_thinking=False làm chat template chèn sẵn khối <think></think> rỗng vào prompt.
+            if isinstance(messages[-1].get("content"), str):
+                messages[-1]["content"] += " /no_think"
+            body["chat_template_kwargs"] = {"enable_thinking": False}
         if grammar:
             body["grammar"] = grammar
+        if tools:
+            body["tools"] = tools
         t0, t_first, parts, finish = time.perf_counter(), None, [], None
+        calls = {}                                     # index -> {"name", "arguments"(chuỗi ghép dần)}
         with self._http.post(f"{self.url}/v1/chat/completions", json=body, stream=True, timeout=600) as r:
             r.raise_for_status()
             r.encoding = "utf-8"
@@ -106,16 +154,25 @@ class Server:
                 if not line or not line.startswith("data:") or line.endswith("[DONE]"):
                     continue
                 choice = json.loads(line[5:])["choices"][0]
-                piece = (choice.get("delta") or {}).get("content")
+                delta = choice.get("delta") or {}
+                piece = delta.get("content")
                 if piece:
                     t_first = t_first or time.perf_counter()
                     parts.append(piece)
+                for tc in delta.get("tool_calls") or []:
+                    t_first = t_first or time.perf_counter()
+                    slot = calls.setdefault(tc.get("index", 0), {"name": "", "arguments": ""})
+                    fn = tc.get("function") or {}
+                    slot["name"] += fn.get("name") or ""
+                    slot["arguments"] += fn.get("arguments") or ""
+                    parts.append("")                   # đếm như một token đã sinh
                 finish = choice.get("finish_reason") or finish
         total = time.perf_counter() - t0
         text = "".join(parts)
         if "</think>" in text:
             text = text.split("</think>")[-1]
-        return {"text": text.strip(), "first_token_s": (t_first - t0) if t_first else None,
+        return {"text": text.strip(), "tool_calls": [calls[k] for k in sorted(calls)],
+                "first_token_s": (t_first - t0) if t_first else None,
                 "total_s": total, "tokens": len(parts), "finish": finish}
 
 
@@ -133,7 +190,8 @@ def server(cfg, n_ctx=2048, threads=None, gpu_layers=0, command=None):
         str(model_catalog.find_llama_bin("llama-server", "./llama.cpp")), "-m", str(cfg["file"]),
         "--host", "127.0.0.1", "--port", str(port), "-c", str(n_ctx),
         "-t", str(threads or os.cpu_count() or 4), "-ngl", str(gpu_layers), "-b", "64", "-ub", "64",
-        "--cache-ram", "0", "-np", "1", "--no-repack"]
+        "--cache-ram", "0", "-np", "1", "--no-repack",
+        "--jinja"]                       # cần để chat_template_kwargs (tắt thinking của Qwen3) có tác dụng
     t0 = time.perf_counter()
     env = os.environ.copy()
     if gpu_layers == 0:
@@ -173,23 +231,34 @@ def server(cfg, n_ctx=2048, threads=None, gpu_layers=0, command=None):
             proc.kill()
 
 def load_base(benchmark):
-    """Kết quả của bài đo trên model gốc: mỗi model một dòng, không gắn mức nén."""
-    df = load(benchmark).sort_values("quant").drop_duplicates("model").copy()   # "F16" xếp trước Q4/Q8
-    df["label"], df["quant"] = df["model"], "F16"      # F16 chỉ để lấy màu xanh dương
+    """Kết quả của bài đo trên model GỐC (HF, chưa nén): mỗi model một dòng.
+
+    Lưu ý: đây là điểm của trọng số gốc, KHÔNG phải của bản Q8/Q4. Không được ghép điểm này vào hàng Q4/Q8.
+    Kết quả cũ (trước khi sửa) bị lưu dưới id kiểu "Phi-4__Q4_K_M" nhưng thực chất cũng là điểm HF gốc,
+    nên vẫn được đọc vào và gắn lại nhãn đúng.
+    """
+    df = load(benchmark)
+    if df.empty:
+        return df
+    df["_hf"] = df["id"].str.endswith("__HF")
+    df = df.sort_values(["_hf", "quant"], ascending=[False, True]).drop_duplicates("model").drop(columns="_hf")
+    df["label"], df["quant"] = df["model"] + " (HF gốc)", "F16"      # F16 chỉ để lấy màu xanh dương
     return df
 
 # ===================================================================== 3. Chạy và lưu kết quả
-def run_all(benchmark, measure, configs=None, force=False, needs_server=True, **server_args):
+def run_all(benchmark, measure, configs=None, force=False, needs_server=True, require=(), **server_args):
     """Chạy hàm `measure(srv)` cho từng cấu hình và lưu vào results/<benchmark>.json.
 
     Chạy lại notebook sẽ bỏ qua cấu hình đã xong (đặt force=True để đo lại).
+    require: các cột bắt buộc; kết quả cũ thiếu cột nào thì đo lại (dùng khi bài đo vừa thêm chỉ số mới).
     measure(srv) phải trả về dict các con số. Nếu needs_server=False thì measure nhận cfg thay vì srv.
     """
     RESULTS_DIR.mkdir(exist_ok=True)
     path = RESULTS_DIR / f"{benchmark}.json"
     results = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
     for cfg in configs or all_configs():
-        if cfg["id"] in results and "error" not in results[cfg["id"]] and not force:
+        done = cfg["id"] in results and "error" not in results[cfg["id"]]
+        if done and not force and all(k in results[cfg["id"]] for k in require):
             print(f"[đã có] {cfg['label']}")
             continue
         if not Path(cfg["file"]).exists():
@@ -200,8 +269,16 @@ def run_all(benchmark, measure, configs=None, force=False, needs_server=True, **
         try:
             if needs_server:
                 with server(cfg, **server_args) as srv:
+                    ram_load = srv.ram.peak_mb
                     metrics = measure(srv)
-                    metrics["ram_peak_mb"] = round(srv.ram.peak_mb, 1)
+                    srv.ram.stop()
+                    metrics["ram_load_mb"] = round(ram_load, 1)          # RAM ngay sau khi nạp model
+                    metrics["ram_peak_mb"] = round(srv.ram.peak_mb, 1)   # RAM lớn nhất trong cả bài đo
+                    file_mb = Path(cfg["file"]).stat().st_size / 2**20
+                    if ram_suspicious(metrics["ram_peak_mb"], file_mb, server_args.get("n_ctx", 2048)):
+                        metrics["ram_suspect"] = True
+                        print(f"   CẢNH BÁO: RAM {metrics['ram_peak_mb']:.0f} MB quá lớn so với file "
+                              f"{file_mb:.0f} MB (lúc nạp: {ram_load:.0f} MB) -> RAM tăng dần theo số câu hỏi?")
             else:
                 metrics = measure(cfg)
         except Exception as e:                        # hết RAM hay lỗi khác cũng là một kết quả
@@ -217,7 +294,7 @@ def load(benchmark):
     path = RESULTS_DIR / f"{benchmark}.json"
     results = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
     rows = []
-    for cfg in all_configs():
+    for cfg in all_configs() + base_configs():
         if cfg["id"] in results:
             rows.append({"id": cfg["id"], "model": cfg["name"], "quant": cfg["quant"], "label": cfg["label"],
                          "params_b": cfg["params_b"], **results[cfg["id"]]})
@@ -231,6 +308,10 @@ def lm_eval_scores_hf(target, limits=None, batch_size=8):
     """Chấm accuracy qua backend 'hf' (transformers) trực tiếp trên GPU — có batching song song.
     Nhanh gấp hàng trăm lần so với gửi từng câu tuần tự qua HTTP tới server GGUF.
     target có thể là Server (srv) hoặc dict cấu hình (cfg).
+
+    CHÚ Ý: hàm này tải trọng số GỐC từ Hugging Face (hf_repo), KHÔNG dùng file GGUF đã nén.
+    Điểm trả về là điểm của model gốc, phải chạy với st.base_configs() và đọc bằng st.load_base().
+    Muốn chấm đúng bản Q8/Q4 thì dùng lm_eval_scores(srv, ..., fast=False) qua server GGUF.
     """
     import gc
     import torch
@@ -245,7 +326,7 @@ def lm_eval_scores_hf(target, limits=None, batch_size=8):
         return dict(_hf_score_cache[cache_key])
 
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
-    dtype = "bfloat16" if torch.cuda.is_bf16_supported() else "float16"
+    dtype = ("bfloat16" if torch.cuda.is_bf16_supported() else "float16") if torch.cuda.is_available() else "float32"
 
     prefer = ["acc_norm,none", "acc,none", "exact_match,strict-match", "prompt_level_strict_acc,none"]
     scores = {}
