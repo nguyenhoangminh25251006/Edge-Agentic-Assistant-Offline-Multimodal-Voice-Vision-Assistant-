@@ -1,0 +1,92 @@
+{
+ "SmolLM2-135M-Instruct__F16": {
+  "answers_correct": 0.2,
+  "refuses_correctly": 0.0,
+  "overall": 0.1,
+  "ram_peak_mb": 746.4
+ },
+ "Qwen2.5-0.5B-Instruct__F16": {
+  "answers_correct": 0.7,
+  "refuses_correctly": 0.36666666666666664,
+  "overall": 0.5333333333333333,
+  "ram_peak_mb": 1818.1
+ },
+ "Qwen3-0.6B__F16": {
+  "answers_correct": 0.9,
+  "refuses_correctly": 0.7,
+  "overall": 0.8,
+  "ram_peak_mb": 2414.7
+ },
+ "Gemma-3-1B-it__F16": {
+  "answers_correct": 0.5666666666666667,
+  "refuses_correctly": 1.0,
+  "overall": 0.7833333333333333,
+  "ram_peak_mb": 3219.6
+ },
+ "Arch-Agent-1.5B__F16": {
+  "answers_correct": 0.43333333333333335,
+  "refuses_correctly": 1.0,
+  "overall": 0.7166666666666667,
+  "ram_peak_mb": 3917.2
+ },
+ "xLAM-2-1B-fc-r__F16": {
+  "answers_correct": 0.5666666666666667,
+  "refuses_correctly": 0.8333333333333334,
+  "overall": 0.7,
+  "ram_peak_mb": 3932.6
+ },
+ "Qwen3-1.7B__F16": {
+  "answers_correct": 0.9,
+  "refuses_correctly": 0.6666666666666666,
+  "overall": 0.7833333333333333,
+  "ram_peak_mb": 4860.8
+ },
+ "Arch-Agent-3B__F16": {
+  "answers_correct": 0.8333333333333334,
+  "refuses_correctly": 0.6666666666666666,
+  "overall": 0.75,
+  "ram_peak_mb": 6939.8
+ },
+ "Arch-Agent-1.5B__Q8_0": {
+  "answers_correct": 0.43333333333333335,
+  "refuses_correctly": 1.0,
+  "overall": 0.7166666666666667,
+  "ram_peak_mb": 2441.9
+ },
+ "xLAM-2-1B-fc-r__Q8_0": {
+  "answers_correct": 0.6,
+  "refuses_correctly": 0.8333333333333334,
+  "overall": 0.7166666666666667,
+  "ram_peak_mb": 2457.5
+ },
+ "Qwen3-1.7B__Q8_0": {
+  "answers_correct": 0.8333333333333334,
+  "refuses_correctly": 0.6666666666666666,
+  "overall": 0.75,
+  "ram_peak_mb": 3078.2
+ },
+ "Arch-Agent-3B__Q8_0": {
+  "answers_correct": 0.8,
+  "refuses_correctly": 0.6666666666666666,
+  "overall": 0.7333333333333333,
+  "ram_peak_mb": 4095.0
+ },
+ "Phi-4-mini-instruct__Q8_0": {
+  "answers_correct": 0.7666666666666667,
+  "refuses_correctly": 0.8,
+  "overall": 0.7833333333333333,
+  "ram_peak_mb": 4939.2
+ },
+ "Arch-Agent-3B__Q4_K_M": {
+  "answers_correct": 0.9333333333333333,
+  "refuses_correctly": 0.6666666666666666,
+  "overall": 0.8,
+  "ram_peak_mb": 2741.0
+ },
+ "Phi-4-mini-instruct__Q4_K_M": {
+  "answers_correct": 0.7333333333333333,
+  "refuses_correctly": 1.0,
+  "overall": 0.8666666666666667,
+  "ram_peak_mb": 3425.8
+ }
+}
