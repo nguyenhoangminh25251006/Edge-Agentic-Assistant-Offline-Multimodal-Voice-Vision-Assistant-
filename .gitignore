@@ -1,4 +1,5 @@
 
+<<<<<<< HEAD
 # Python environments and generated files
 __pycache__/
 *.py[cod]
@@ -34,3 +35,5 @@ env/
 .DS_Store
 Thumbs.db
 Desktop.ini
+=======
+>>>>>>> 6b7a25ef9ec9bde17c8fe2c0304630e6a72a7b60
