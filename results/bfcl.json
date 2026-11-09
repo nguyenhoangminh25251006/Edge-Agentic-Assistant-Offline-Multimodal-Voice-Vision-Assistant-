@@ -1,0 +1,122 @@
+{
+ "SmolLM2-135M-Instruct__F16": {
+  "simple": 0.0,
+  "multiple": 0.0,
+  "parallel": 0.0,
+  "irrelevance": 0.0,
+  "overall": 0.0,
+  "ram_peak_mb": 997.6
+ },
+ "Qwen2.5-0.5B-Instruct__F16": {
+  "simple": 0.75,
+  "multiple": 0.75,
+  "parallel": 0.25,
+  "irrelevance": 0.18333333333333332,
+  "overall": 0.48333333333333334,
+  "ram_peak_mb": 2364.4
+ },
+ "Qwen3-0.6B__F16": {
+  "simple": 0.8833333333333333,
+  "multiple": 0.8,
+  "parallel": 0.03333333333333333,
+  "irrelevance": 0.8166666666666667,
+  "overall": 0.6333333333333333,
+  "ram_peak_mb": 2962.6
+ },
+ "Gemma-3-1B-it__F16": {
+  "simple": 0.36666666666666664,
+  "multiple": 0.21666666666666667,
+  "parallel": 0.13333333333333333,
+  "irrelevance": 0.0,
+  "overall": 0.17916666666666664,
+  "ram_peak_mb": 4154.5
+ },
+ "Arch-Agent-1.5B__F16": {
+  "simple": 0.8833333333333333,
+  "multiple": 0.9166666666666666,
+  "parallel": 0.75,
+  "irrelevance": 0.55,
+  "overall": 0.7749999999999999,
+  "ram_peak_mb": 4468.6
+ },
+ "xLAM-2-1B-fc-r__F16": {
+  "simple": 0.85,
+  "multiple": 0.85,
+  "parallel": 0.6666666666666666,
+  "irrelevance": 0.43333333333333335,
+  "overall": 0.7,
+  "ram_peak_mb": 4471.9
+ },
+ "Qwen3-1.7B__F16": {
+  "simple": 0.8833333333333333,
+  "multiple": 0.9166666666666666,
+  "parallel": 0.6666666666666666,
+  "irrelevance": 0.7666666666666667,
+  "overall": 0.8083333333333332,
+  "ram_peak_mb": 5403.1
+ },
+ "Arch-Agent-3B__F16": {
+  "simple": 0.95,
+  "multiple": 0.9,
+  "parallel": 0.5,
+  "irrelevance": 0.6166666666666667,
+  "overall": 0.7416666666666667,
+  "ram_peak_mb": 7417.7
+ },
+ "Arch-Agent-1.5B__Q8_0": {
+  "simple": 0.8833333333333333,
+  "multiple": 0.9166666666666666,
+  "parallel": 0.75,
+  "irrelevance": 0.5833333333333334,
+  "overall": 0.7833333333333333,
+  "ram_peak_mb": 2989.2
+ },
+ "xLAM-2-1B-fc-r__Q8_0": {
+  "simple": 0.85,
+  "multiple": 0.85,
+  "parallel": 0.6666666666666666,
+  "irrelevance": 0.43333333333333335,
+  "overall": 0.7,
+  "ram_peak_mb": 2993.2
+ },
+ "Qwen3-1.7B__Q8_0": {
+  "simple": 0.9,
+  "multiple": 0.9166666666666666,
+  "parallel": 0.6666666666666666,
+  "irrelevance": 0.7666666666666667,
+  "overall": 0.8125,
+  "ram_peak_mb": 3618.3
+ },
+ "Arch-Agent-3B__Q8_0": {
+  "simple": 0.95,
+  "multiple": 0.9166666666666666,
+  "parallel": 0.48333333333333334,
+  "irrelevance": 0.6166666666666667,
+  "overall": 0.7416666666666667,
+  "ram_peak_mb": 4668.7
+ },
+ "Phi-4-mini-instruct__Q8_0": {
+  "simple": 0.85,
+  "multiple": 0.85,
+  "parallel": 0.7333333333333333,
+  "irrelevance": 0.8833333333333333,
+  "overall": 0.8291666666666666,
+  "ram_peak_mb": 5743.2
+ },
+ "Arch-Agent-3B__Q4_K_M": {
+  "simple": 0.9166666666666666,
+  "multiple": 0.8666666666666667,
+  "parallel": 0.38333333333333336,
+  "irrelevance": 0.48333333333333334,
+  "overall": 0.6625,
+  "ram_peak_mb": 3279.0
+ },
+ "Phi-4-mini-instruct__Q4_K_M": {
+  "simple": 0.8333333333333334,
+  "multiple": 0.8333333333333334,
+  "parallel": 0.8,
+  "irrelevance": 0.8666666666666667,
+  "overall": 0.8333333333333334,
+  "ram_peak_mb": 4210.1
+ }
+}
