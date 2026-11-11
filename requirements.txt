@@ -1,3 +1,0 @@
-pydantic>=2.10,<3
-pyzmq>=26,<28
-aiosqlite>=0.20,<1
