@@ -1,0 +1,15 @@
+# 2026-11-11T21:17:28+07:00
+Raspberry Pi 3 Model B Rev 1.2
+Revision	: a02082
+Model		: Raspberry Pi 3 Model B Rev 1.2
+Linux hminh 6.18.50+rpt-rpi-v8 #1 SMP PREEMPT Debian 1:6.18.50-1+rpt1 (2026-09-11) aarch64 GNU/Linux
+4
+               total        used        free      shared  buff/cache   available
+Mem:             905         148          80           3         736         756
+Swap:            904           0         904
+1400000
+arm_freq=1400
+over_voltage=2
+Bus 001 Device 001: ID 1d6b:0002 Linux Foundation 2.0 root hub
+Bus 001 Device 002: ID 0424:9514 Microchip Technology, Inc. (formerly SMSC) SMC9514 Hub
+Bus 001 Device 003: ID 0424:ec00 Microchip Technology, Inc. (formerly SMSC) SMSC9512/9514 Fast Ethernet Adapter

@@ -1,0 +1,14 @@
+### SmolLM2-135M-Instruct.Q4_K_M
+try=1 rc=0 rows=3 samples=49 low_clock_samples=0 min_clock_mhz=1399 new_undervoltage=0 peak_rss_mib=137 temp=56.4'C
+| llama 256M Q4_K - Medium       |  98.87 MiB |   134.52 M | CPU        |       4 |           pp128 |         35.56 ± 0.05 |
+| llama 256M Q4_K - Medium       |  98.87 MiB |   134.52 M | CPU        |       4 |            tg64 |         17.13 ± 0.06 |
+RESULT_OK
+Swap:            904           0         904
+### Qwen2.5-0.5B-Instruct.Q4_K_M
+./pibench_seq.sh: line 35:  6275 Illegal instruction     $BIN -m "$f" -p 128 -n 64 -r 3 -t 4 -o md > "$out" 2> /dev/null
+CRASH rc=132 total=1
+try=1 rc=132 rows=0 samples=73 low_clock_samples=0 min_clock_mhz=1399 new_undervoltage=0 peak_rss_mib=442 temp=63.4'C
+DISCARD (clock<max or crash rc=132)
+./pibench_seq.sh: line 35:  6824 Illegal instruction     $BIN -m "$f" -p 128 -n 64 -r 3 -t 4 -o md > "$out" 2> /dev/null
+CRASH rc=132 total=2
+ABORT: 2 crashes, likely power

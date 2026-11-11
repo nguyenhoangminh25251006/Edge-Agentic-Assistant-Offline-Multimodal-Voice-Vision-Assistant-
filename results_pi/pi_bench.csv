@@ -1,0 +1,7 @@
+model,quant,file_size_mib,params,pp128_tps,pp128_std,tg64_tps,tg64_std,peak_rss_mib,status
+SmolLM2-135M-Instruct,Q4_K_M,98.87,134.52M,34.50,1.59,16.27,0.52,137,ok
+Qwen2.5-0.5B-Instruct,Q4_K_M,373.71,494.03M,11.43,0.10,4.85,0.09,442,ok
+Qwen3-0.6B,Q4_K_M,456.11,751.63M,10.47,0.09,4.58,0.09,549,ok
+Qwen3-0.6B,Q8_0,,751.63M,,,,,766,no_clean_run (8/8 tries clock-throttled)
+Arch-Agent-1.5B-e4,Q3_K_S,662.64,1.54B,3.08,0.01,2.14,0.00,745,ok
+Arch-Agent-1.5B-e4,Q3_K_M,722.94,1.54B,3.28,0.02,,,767,tg64 missing (Illegal instruction crash)

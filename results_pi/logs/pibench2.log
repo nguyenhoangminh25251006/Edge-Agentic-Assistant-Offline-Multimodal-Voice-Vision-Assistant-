@@ -1,0 +1,12 @@
+### Arch-Agent-1.5B.Q3_K_S-e4
+| qwen2 1.5B Q3_K - Small        | 662.64 MiB |     1.54 B | CPU        |       4 |           pp128 |          1.32 ± 0.00 |
+| qwen2 1.5B Q3_K - Small        | 662.64 MiB |     1.54 B | CPU        |       4 |            tg64 |          0.97 ± 0.00 |
+peak_rss_mib=726
+Swap:            904          37         867
+### Arch-Agent-1.5B.Q3_K_M-e4
+| qwen2 1.5B Q3_K - Medium       | 722.94 MiB |     1.54 B | CPU        |       4 |           pp128 |          1.30 ± 0.03 |
+| qwen2 1.5B Q3_K - Medium       | 722.94 MiB |     1.54 B | CPU        |       4 |            tg64 |          1.00 ± 0.02 |
+peak_rss_mib=743
+Swap:            904          38         866
+throttled=0x50005
+ALLDONE

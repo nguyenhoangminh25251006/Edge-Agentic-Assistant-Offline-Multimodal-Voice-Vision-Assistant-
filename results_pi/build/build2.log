@@ -1,0 +1,57 @@
+[  3%] Built target vendor-hash
+[  9%] Built target ggml-base
+[ 18%] Built target ggml-cpu
+[ 20%] Built target ggml
+[ 43%] Built target llama
+[ 51%] Built target mtmd
+[ 51%] Built target cpp-httplib
+[ 53%] Built target llama-common-base
+[ 54%] Building CXX object common/CMakeFiles/llama-common.dir/arg.cpp.o
+[ 56%] Building CXX object common/CMakeFiles/llama-common.dir/common.cpp.o
+[ 56%] Building CXX object common/CMakeFiles/llama-common.dir/console.cpp.o
+[ 56%] Building CXX object common/CMakeFiles/llama-common.dir/debug.cpp.o
+[ 57%] Building CXX object common/CMakeFiles/llama-common.dir/download.cpp.o
+[ 57%] Building CXX object common/CMakeFiles/llama-common.dir/fit.cpp.o
+[ 59%] Building CXX object common/CMakeFiles/llama-common.dir/file-lock.cpp.o
+[ 59%] Building CXX object common/CMakeFiles/llama-common.dir/hf-cache.cpp.o
+[ 59%] Building CXX object common/CMakeFiles/llama-common.dir/imatrix-loader.cpp.o
+[ 60%] Building CXX object common/CMakeFiles/llama-common.dir/json-schema-to-grammar.cpp.o
+[ 60%] Building CXX object common/CMakeFiles/llama-common.dir/json-schema.cpp.o
+[ 60%] Building CXX object common/CMakeFiles/llama-common.dir/json.cpp.o
+[ 62%] Building CXX object common/CMakeFiles/llama-common.dir/llguidance.cpp.o
+[ 62%] Building CXX object common/CMakeFiles/llama-common.dir/log.cpp.o
+[ 62%] Building CXX object common/CMakeFiles/llama-common.dir/ngram-cache.cpp.o
+[ 64%] Building CXX object common/CMakeFiles/llama-common.dir/ngram-map.cpp.o
+[ 64%] Building CXX object common/CMakeFiles/llama-common.dir/ngram-mod.cpp.o
+[ 64%] Building CXX object common/CMakeFiles/llama-common.dir/peg-parser.cpp.o
+[ 65%] Building CXX object common/CMakeFiles/llama-common.dir/preset.cpp.o
+[ 65%] Building CXX object common/CMakeFiles/llama-common.dir/reasoning-budget.cpp.o
+[ 65%] Building CXX object common/CMakeFiles/llama-common.dir/sampling.cpp.o
+[ 67%] Building CXX object common/CMakeFiles/llama-common.dir/speculative.cpp.o
+[ 67%] Building CXX object common/CMakeFiles/llama-common.dir/subproc.cpp.o
+[ 67%] Building CXX object common/CMakeFiles/llama-common.dir/trie.cpp.o
+[ 68%] Building CXX object common/CMakeFiles/llama-common.dir/unicode.cpp.o
+[ 68%] Building CXX object common/CMakeFiles/llama-common.dir/jinja/lexer.cpp.o
+[ 68%] Building CXX object common/CMakeFiles/llama-common.dir/jinja/parser.cpp.o
+[ 70%] Building CXX object common/CMakeFiles/llama-common.dir/jinja/runtime.cpp.o
+[ 70%] Building CXX object common/CMakeFiles/llama-common.dir/jinja/value.cpp.o
+[ 70%] Building CXX object common/CMakeFiles/llama-common.dir/jinja/string.cpp.o
+[ 71%] Building CXX object common/CMakeFiles/llama-common.dir/jinja/caps.cpp.o
+[ 71%] Linking CXX shared library ../bin/libllama-common.so
+[ 84%] Built target llama-common
+[ 85%] Provisioning UI assets
+-- UI: HF stamp matches 'ggml-org/llama-ui|b0', skipping HF fetch
+-- UI: assets unchanged, skipping embedding
+[ 85%] Built target llama-ui-assets
+[ 87%] Built target llama-ui
+[ 87%] Building CXX object tools/server/CMakeFiles/server-context.dir/server-chat.cpp.o
+[ 87%] Building CXX object tools/server/CMakeFiles/server-context.dir/server-task.cpp.o
+[ 89%] Building CXX object tools/server/CMakeFiles/server-context.dir/server-queue.cpp.o
+[ 89%] Building CXX object tools/server/CMakeFiles/server-context.dir/server-common.cpp.o
+[ 89%] Building CXX object tools/server/CMakeFiles/server-context.dir/server-decision.cpp.o
+c++: fatal error: Terminated signal terminated program cc1plus
+compilation terminated.
+gmake[3]: *** [tools/server/CMakeFiles/server-context.dir/build.make:135: tools/server/CMakeFiles/server-context.dir/server-decision.cpp.o] Error 1
+gmake[2]: *** [CMakeFiles/Makefile2:3198: tools/server/CMakeFiles/server-context.dir/all] Error 2
+gmake[1]: *** [CMakeFiles/Makefile2:3167: tools/cli/CMakeFiles/llama-cli.dir/rule] Error 2
+gmake: *** [Makefile:806: llama-cli] Error 2

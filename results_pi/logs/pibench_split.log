@@ -1,0 +1,84 @@
+### SmolLM2-135M-Instruct.Q4_K_M
+## test: -p 128 -n 0
+try=1 rc=0 rows=1 samples=37 low_clock_samples=2 min_clock_mhz=600 new_undervoltage=0 peak_rss_mib=137 temp=50.5'C
+DISCARD
+try=2 rc=0 rows=1 samples=28 low_clock_samples=0 min_clock_mhz=1399 new_undervoltage=0 peak_rss_mib=137 temp=53.2'C
+| llama 256M Q4_K - Medium       |  98.87 MiB |   134.52 M | CPU        |       4 |           pp128 |         34.50 ± 1.59 |
+RESULT_OK
+## test: -p 0 -n 64
+try=1 rc=0 rows=1 samples=23 low_clock_samples=1 min_clock_mhz=800 new_undervoltage=0 peak_rss_mib=133 temp=50.5'C
+DISCARD
+try=2 rc=0 rows=1 samples=24 low_clock_samples=0 min_clock_mhz=1399 new_undervoltage=0 peak_rss_mib=133 temp=50.5'C
+| llama 256M Q4_K - Medium       |  98.87 MiB |   134.52 M | CPU        |       4 |            tg64 |         16.27 ± 0.52 |
+RESULT_OK
+Swap:            904          29         875
+### Qwen2.5-0.5B-Instruct.Q4_K_M
+## test: -p 128 -n 0
+try=1 rc=0 rows=1 samples=85 low_clock_samples=0 min_clock_mhz=1399 new_undervoltage=0 peak_rss_mib=442 temp=61.8'C
+| qwen2 1B Q4_K - Medium         | 373.71 MiB |   494.03 M | CPU        |       4 |           pp128 |         11.43 ± 0.10 |
+RESULT_OK
+## test: -p 0 -n 64
+try=1 rc=0 rows=1 samples=76 low_clock_samples=0 min_clock_mhz=1399 new_undervoltage=0 peak_rss_mib=434 temp=59.1'C
+| qwen2 1B Q4_K - Medium         | 373.71 MiB |   494.03 M | CPU        |       4 |            tg64 |          4.85 ± 0.09 |
+RESULT_OK
+Swap:            904          29         875
+### Qwen3-0.6B.Q4_K_M
+## test: -p 128 -n 0
+try=1 rc=0 rows=1 samples=121 low_clock_samples=2 min_clock_mhz=600 new_undervoltage=0 peak_rss_mib=549 temp=60.7'C
+DISCARD
+try=2 rc=0 rows=1 samples=94 low_clock_samples=0 min_clock_mhz=1399 new_undervoltage=0 peak_rss_mib=549 temp=60.7'C
+| qwen3 0.6B Q4_K - Medium       | 456.11 MiB |   751.63 M | CPU        |       4 |           pp128 |         10.47 ± 0.09 |
+RESULT_OK
+## test: -p 0 -n 64
+try=1 rc=0 rows=1 samples=81 low_clock_samples=0 min_clock_mhz=1399 new_undervoltage=0 peak_rss_mib=543 temp=60.1'C
+| qwen3 0.6B Q4_K - Medium       | 456.11 MiB |   751.63 M | CPU        |       4 |            tg64 |          4.58 ± 0.09 |
+RESULT_OK
+Swap:            904          29         875
+### Qwen3-0.6B.Q8_0
+## test: -p 128 -n 0
+try=1 rc=0 rows=1 samples=180 low_clock_samples=14 min_clock_mhz=600 new_undervoltage=0 peak_rss_mib=759 temp=59.6'C
+DISCARD
+try=2 rc=0 rows=1 samples=122 low_clock_samples=1 min_clock_mhz=700 new_undervoltage=0 peak_rss_mib=764 temp=60.1'C
+DISCARD
+try=3 rc=0 rows=1 samples=129 low_clock_samples=2 min_clock_mhz=800 new_undervoltage=0 peak_rss_mib=763 temp=59.1'C
+DISCARD
+try=4 rc=0 rows=1 samples=149 low_clock_samples=3 min_clock_mhz=600 new_undervoltage=0 peak_rss_mib=760 temp=58.0'C
+DISCARD
+FAILED Qwen3-0.6B.Q8_0 -p 128 -n 0
+## test: -p 0 -n 64
+try=1 rc=0 rows=1 samples=161 low_clock_samples=3 min_clock_mhz=700 new_undervoltage=0 peak_rss_mib=753 temp=55.3'C
+DISCARD
+try=2 rc=0 rows=1 samples=168 low_clock_samples=9 min_clock_mhz=600 new_undervoltage=0 peak_rss_mib=755 temp=55.8'C
+DISCARD
+try=3 rc=0 rows=1 samples=167 low_clock_samples=2 min_clock_mhz=600 new_undervoltage=0 peak_rss_mib=723 temp=55.3'C
+DISCARD
+try=4 rc=0 rows=1 samples=157 low_clock_samples=3 min_clock_mhz=600 new_undervoltage=0 peak_rss_mib=766 temp=54.8'C
+DISCARD
+FAILED Qwen3-0.6B.Q8_0 -p 0 -n 64
+Swap:            904          33         871
+### Arch-Agent-1.5B.Q3_K_S-e4
+## test: -p 128 -n 0
+try=1 rc=0 rows=1 samples=373 low_clock_samples=23 min_clock_mhz=600 new_undervoltage=0 peak_rss_mib=712 temp=62.3'C
+DISCARD
+try=2 rc=0 rows=1 samples=310 low_clock_samples=0 min_clock_mhz=1399 new_undervoltage=0 peak_rss_mib=745 temp=64.5'C
+| qwen2 1.5B Q3_K - Small        | 662.64 MiB |     1.54 B | CPU        |       4 |           pp128 |          3.08 ± 0.01 |
+RESULT_OK
+## test: -p 0 -n 64
+try=1 rc=0 rows=1 samples=169 low_clock_samples=0 min_clock_mhz=1399 new_undervoltage=0 peak_rss_mib=729 temp=65.0'C
+| qwen2 1.5B Q3_K - Small        | 662.64 MiB |     1.54 B | CPU        |       4 |            tg64 |          2.14 ± 0.00 |
+RESULT_OK
+Swap:            904          31         873
+### Arch-Agent-1.5B.Q3_K_M-e4
+## test: -p 128 -n 0
+/home/hminh/pibench_split.sh: line 37: 35043 Illegal instruction     $BIN -m "$f" $t -r 3 -t 4 -o md > "$out" 2> /dev/null
+try=1 rc=132 rows=0 samples=362 low_clock_samples=35 min_clock_mhz=600 new_undervoltage=0 peak_rss_mib=749 temp=66.6'C
+CRASH rc=132 total=1
+DISCARD
+try=2 rc=0 rows=1 samples=304 low_clock_samples=0 min_clock_mhz=1399 new_undervoltage=0 peak_rss_mib=767 temp=62.8'C
+| qwen2 1.5B Q3_K - Medium       | 722.94 MiB |     1.54 B | CPU        |       4 |           pp128 |          3.28 ± 0.02 |
+RESULT_OK
+## test: -p 0 -n 64
+/home/hminh/pibench_split.sh: line 37: 40025 Illegal instruction     $BIN -m "$f" $t -r 3 -t 4 -o md > "$out" 2> /dev/null
+try=1 rc=132 rows=0 samples=139 low_clock_samples=19 min_clock_mhz=600 new_undervoltage=0 peak_rss_mib=731 temp=60.7'C
+CRASH rc=132 total=2
+ABORT: 2 crashes

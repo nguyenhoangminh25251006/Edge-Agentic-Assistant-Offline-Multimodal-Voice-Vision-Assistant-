@@ -1,0 +1,18 @@
+### SmolLM2-135M-Instruct.Q4_K_M
+try=1 samples=53 low_clock_samples=7 min_clock_mhz=600 new_undervoltage=2 peak_rss_mib=137 temp=55.3'C
+DISCARD (clock dropped below max)
+try=2 samples=50 low_clock_samples=0 min_clock_mhz=1399 new_undervoltage=0 peak_rss_mib=137 temp=59.1'C
+| llama 256M Q4_K - Medium       |  98.87 MiB |   134.52 M | CPU        |       4 |           pp128 |         35.29 ± 0.04 |
+| llama 256M Q4_K - Medium       |  98.87 MiB |   134.52 M | CPU        |       4 |            tg64 |         16.82 ± 0.15 |
+RESULT_OK
+Swap:            904           0         904
+### Qwen2.5-0.5B-Instruct.Q4_K_M
+/home/hminh/pibench_seq.sh: line 34:  3945 Illegal instruction     $BIN -m "$f" -p 128 -n 64 -r 3 -t 4 -o md > "$out" 2> /dev/null
+try=1 samples=65 low_clock_samples=26 min_clock_mhz=600 new_undervoltage=0 peak_rss_mib=442 temp=55.8'C
+DISCARD (clock dropped below max)
+try=2 samples=166 low_clock_samples=30 min_clock_mhz=600 new_undervoltage=4 peak_rss_mib=442 temp=58.0'C
+DISCARD (clock dropped below max)
+/home/hminh/pibench_seq.sh: line 34:  5392 Segmentation fault      $BIN -m "$f" -p 128 -n 64 -r 3 -t 4 -o md > "$out" 2> /dev/null
+try=3 samples=65 low_clock_samples=0 min_clock_mhz=1399 new_undervoltage=0 peak_rss_mib=442 temp=62.3'C
+RESULT_OK
+Swap:            904           0         904

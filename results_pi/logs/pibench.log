@@ -1,0 +1,21 @@
+### SmolLM2-135M-Instruct.Q4_K_M 98e5095c8017c4c77aa4bebf59d31b72
+| llama 256M Q4_K - Medium       |  98.87 MiB |   134.52 M | CPU        |       4 |           pp128 |         12.26 ± 0.81 |
+| llama 256M Q4_K - Medium       |  98.87 MiB |   134.52 M | CPU        |       4 |            tg64 |          4.98 ± 0.19 |
+peak_rss_mib=137
+### Qwen2.5-0.5B-Instruct.Q4_K_M 9301b902fcfb4576c33e7d7f97f7f9bc
+| qwen2 1B Q4_K - Medium         | 373.71 MiB |   494.03 M | CPU        |       4 |           pp128 |          4.91 ± 0.02 |
+| qwen2 1B Q4_K - Medium         | 373.71 MiB |   494.03 M | CPU        |       4 |            tg64 |          2.71 ± 0.03 |
+peak_rss_mib=442
+### Qwen3-0.6B.Q4_K_M 8cc9b260c7dbc6060c92e5e863a2d357
+| qwen3 0.6B Q4_K - Medium       | 456.11 MiB |   751.63 M | CPU        |       4 |           pp128 |          4.41 ± 0.04 |
+| qwen3 0.6B Q4_K - Medium       | 456.11 MiB |   751.63 M | CPU        |       4 |            tg64 |          2.37 ± 0.08 |
+peak_rss_mib=455
+### Qwen3-0.6B.Q8_0 0cbb6126728f9fcda2534d6718f19ed8
+| qwen3 0.6B Q8_0                | 761.80 MiB |   751.63 M | CPU        |       4 |           pp128 |          4.19 ± 0.07 |
+| qwen3 0.6B Q8_0                | 761.80 MiB |   751.63 M | CPU        |       4 |            tg64 |          1.84 ± 0.03 |
+peak_rss_mib=748
+### Gemma-3-1B-it.Q4_K_M fa6db01a0973b8728b66f363723f589b
+| gemma3 1B Q4_K - Medium        | 762.49 MiB |   999.89 M | CPU        |       4 |           pp128 |          2.01 ± 0.12 |
+| gemma3 1B Q4_K - Medium        | 762.49 MiB |   999.89 M | CPU        |       4 |            tg64 |          0.10 ± 0.01 |
+peak_rss_mib=752
+ALLDONE

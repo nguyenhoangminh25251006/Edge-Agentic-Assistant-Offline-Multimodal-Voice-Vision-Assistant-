@@ -1,0 +1,29 @@
+0.00.059.231 I srv  llama_server: initializing ...
+0.00.078.911 I cmn  common_param: common_params_print_info: verbosity = 3 (adjust with the `-lv N` CLI arg)
+0.00.111.038 W srv  server_setup: security: no API key is set and CORS allows all origins (see https://github.com/ggml-org/llama.cpp/pull/25655)
+0.00.114.746 I srv    load_model: loading model '/home/hminh/models/Arch-Agent-1.5B.Q3_K_S-e4.gguf'
+0.03.192.522 W common_fit_params: failed to fit params to free device memory: was unable to fit model into system memory by reducing context, abort
+0.04.661.331 W load: control-looking token: 128247 '</s>' was not control-type; this is probably a bug in the model. its type will be overridden
+0.46.920.143 I cmn          init: llama threadpool init, n_threads = 4
+0.57.645.816 I srv    load_model: initializing, n_slots = 1, n_ctx_slot = 2048, kv_unified = 'false'
+0.58.179.817 I srv  server_run_i: model loaded
+0.58.180.053 I srv  server_on_li: listening on http://0.0.0.0:8080
+199.15.229.780 I slot get_availabl: id  0 | task -1 | selected slot by LRU, n_tokens = 0, t_last = -1
+199.15.311.159 I slot launch_slot_: id  0 | task 0 | processing task, is_child = 0
+209.04.434.822 W srv          stop: cancel task, id_task = 0
+212.59.108.424 I slot      release: id  0 | task 0 | stop processing: n_tokens = 1046, truncated = 0
+212.59.116.090 I slot get_availabl: id  0 | task -1 | selected slot by LCP similarity, f_sim_best = 1.000 (> 0.100 thold), f_keep = 1.000
+212.59.231.800 I slot launch_slot_: id  0 | task 3 | processing task, is_child = 0
+212.59.235.047 W slot   operator(): id  0 | task 3 | need to evaluate at least 1 token for each active slot (n_past = 1046, task.n_tokens() = 1046)
+212.59.235.068 W slot   operator(): id  0 | task 3 | n_past was set to 1045
+216.54.316.505 I slot print_timing: id  0 | task 3 | prompt eval time =   12911.99 ms /     1 tokens (12911.99 ms per token,     0.08 tokens per second)
+216.54.316.557 I slot print_timing: id  0 | task 3 |        eval time =  222119.32 ms /    32 tokens ( 7165.14 ms per token,     0.14 tokens per second)
+216.54.316.635 I slot print_timing: id  0 | task 3 |       total time =  235031.31 ms /    33 tokens
+216.54.394.245 I slot print_timing: id  0 | task 3 |    graphs reused =         32
+216.54.394.275 I slot print_timing: id  0 | task 3 |   graph reallocs =          0    /     0        (same size) / (changed size)
+216.54.489.251 I slot      release: id  0 | task 3 | stop processing: n_tokens = 1077, truncated = 0
+216.55.176.160 I slot get_availabl: id  0 | task -1 | selected slot by LCP similarity, f_sim_best = 0.986 (> 0.100 thold), f_keep = 0.957
+216.55.197.977 I slot launch_slot_: id  0 | task 36 | processing task, is_child = 0
+219.06.680.551 W srv          stop: cancel task, id_task = 36
+219.14.212.147 I slot      release: id  0 | task 36 | stop processing: n_tokens = 1062, truncated = 0
+219.32.872.645 I srv    operator(): operator(): cleaning up before exit...

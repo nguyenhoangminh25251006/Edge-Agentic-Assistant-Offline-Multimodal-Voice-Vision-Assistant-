@@ -1,0 +1,21 @@
+# Pi đã khởi động lại lúc 2026-11-11 12:37:06, dmesg của lần boot chạy benchmark đã mất.
+# Dưới đây là các dòng dmesg đã đọc được trong lúc đo (lần boot trước, uptime tính bằng giây).
+# Chỉ có các đoạn trích, không phải toàn bộ log.
+
+[   13.608466] hwmon hwmon1: Undervoltage detected!
+[   19.652235] hwmon hwmon1: Voltage normalised
+[  684.937698] hwmon hwmon1: Undervoltage detected!
+[  713.161801] hwmon hwmon1: Voltage normalised
+...  (sụt áp lặp lại khoảng 10-15 giây một lần trong lúc đo, khi còn cắm phím/chuột)
+[ 2323.960242] hwmon hwmon1: Undervoltage detected!
+[ 2330.008311] hwmon hwmon1: Voltage normalised
+[ 2334.040392] hwmon hwmon1: Undervoltage detected!
+[ 2338.072372] hwmon hwmon1: Voltage normalised
+[ 2350.168528] hwmon hwmon1: Undervoltage detected!
+[ 2360.248463] hwmon hwmon1: Voltage normalised
+[ 2364.280661] hwmon hwmon1: Undervoltage detected!
+[ 2370.328518] hwmon hwmon1: Voltage normalised
+[ 3131.727993] usb 1-1.2: USB disconnect, device number 4      <- rút phím/chuột
+[ 3136.796020] usb 1-1.3: USB disconnect, device number 5
+# Sau khi rút: không còn dòng "Undervoltage detected" nào đến hết lần đo pibench_split
+# (get_throttled = 0x50000: chỉ còn cờ sticky). Lần boot hiện tại: get_throttled = 0x0.
