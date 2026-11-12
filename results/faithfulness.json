@@ -1,92 +1,186 @@
 {
  "SmolLM2-135M-Instruct__F16": {
-  "answers_correct": 0.2,
+  "answers_correct": 0.43333333333333335,
   "refuses_correctly": 0.0,
-  "overall": 0.1,
-  "ram_peak_mb": 746.4
+  "overall": 0.21666666666666667,
+  "ram_load_mb": 665.7,
+  "ram_peak_mb": 781.4,
+  "device": "gpu"
  },
  "Qwen2.5-0.5B-Instruct__F16": {
-  "answers_correct": 0.7,
-  "refuses_correctly": 0.36666666666666664,
-  "overall": 0.5333333333333333,
-  "ram_peak_mb": 1818.1
+  "answers_correct": 0.7666666666666667,
+  "refuses_correctly": 0.43333333333333335,
+  "overall": 0.6,
+  "ram_load_mb": 1382.5,
+  "ram_peak_mb": 1486.5,
+  "device": "gpu"
  },
  "Qwen3-0.6B__F16": {
   "answers_correct": 0.9,
   "refuses_correctly": 0.7,
   "overall": 0.8,
-  "ram_peak_mb": 2414.7
+  "ram_load_mb": 1580.2,
+  "ram_peak_mb": 1659.8,
+  "device": "gpu"
  },
  "Gemma-3-1B-it__F16": {
   "answers_correct": 0.5666666666666667,
   "refuses_correctly": 1.0,
   "overall": 0.7833333333333333,
-  "ram_peak_mb": 3219.6
+  "ram_load_mb": 2351.3,
+  "ram_peak_mb": 2530.6,
+  "device": "gpu"
  },
  "Arch-Agent-1.5B__F16": {
-  "answers_correct": 0.43333333333333335,
+  "answers_correct": 0.3333333333333333,
   "refuses_correctly": 1.0,
-  "overall": 0.7166666666666667,
-  "ram_peak_mb": 3917.2
+  "overall": 0.6666666666666666,
+  "ram_load_mb": 3387.9,
+  "ram_peak_mb": 3493.7,
+  "device": "gpu"
  },
  "xLAM-2-1B-fc-r__F16": {
-  "answers_correct": 0.5666666666666667,
+  "answers_correct": 0.7666666666666667,
   "refuses_correctly": 0.8333333333333334,
-  "overall": 0.7,
-  "ram_peak_mb": 3932.6
+  "overall": 0.8,
+  "ram_load_mb": 3388.1,
+  "ram_peak_mb": 3494.2,
+  "device": "gpu"
  },
  "Qwen3-1.7B__F16": {
   "answers_correct": 0.9,
   "refuses_correctly": 0.6666666666666666,
   "overall": 0.7833333333333333,
-  "ram_peak_mb": 4860.8
+  "ram_load_mb": 3728.7,
+  "ram_peak_mb": 3809.8,
+  "device": "gpu"
  },
  "Arch-Agent-3B__F16": {
   "answers_correct": 0.8333333333333334,
   "refuses_correctly": 0.6666666666666666,
   "overall": 0.75,
-  "ram_peak_mb": 6939.8
+  "ram_load_mb": 5644.4,
+  "ram_peak_mb": 5644.4,
+  "device": "gpu"
  },
  "Arch-Agent-1.5B__Q8_0": {
-  "answers_correct": 0.43333333333333335,
+  "answers_correct": 0.3333333333333333,
   "refuses_correctly": 1.0,
-  "overall": 0.7166666666666667,
-  "ram_peak_mb": 2441.9
+  "overall": 0.6666666666666666,
+  "ram_load_mb": 2002.8,
+  "ram_peak_mb": 2030.1,
+  "device": "gpu"
  },
  "xLAM-2-1B-fc-r__Q8_0": {
-  "answers_correct": 0.6,
+  "answers_correct": 0.8,
   "refuses_correctly": 0.8333333333333334,
-  "overall": 0.7166666666666667,
-  "ram_peak_mb": 2457.5
+  "overall": 0.8166666666666667,
+  "ram_load_mb": 2003.1,
+  "ram_peak_mb": 2030.6,
+  "device": "gpu"
  },
  "Qwen3-1.7B__Q8_0": {
-  "answers_correct": 0.8333333333333334,
+  "answers_correct": 0.9,
   "refuses_correctly": 0.6666666666666666,
-  "overall": 0.75,
-  "ram_peak_mb": 3078.2
+  "overall": 0.7833333333333333,
+  "ram_load_mb": 2186.0,
+  "ram_peak_mb": 2213.6,
+  "device": "gpu"
  },
  "Arch-Agent-3B__Q8_0": {
   "answers_correct": 0.8,
   "refuses_correctly": 0.6666666666666666,
   "overall": 0.7333333333333333,
-  "ram_peak_mb": 4095.0
+  "ram_load_mb": 3571.1,
+  "ram_peak_mb": 3601.0,
+  "device": "gpu"
  },
  "Phi-4-mini-instruct__Q8_0": {
   "answers_correct": 0.7666666666666667,
   "refuses_correctly": 0.8,
   "overall": 0.7833333333333333,
-  "ram_peak_mb": 4939.2
+  "ram_load_mb": 4339.1,
+  "ram_peak_mb": 4371.2,
+  "device": "gpu"
  },
  "Arch-Agent-3B__Q4_K_M": {
-  "answers_correct": 0.9333333333333333,
-  "refuses_correctly": 0.6666666666666666,
-  "overall": 0.8,
-  "ram_peak_mb": 2741.0
+  "answers_correct": 0.9666666666666667,
+  "refuses_correctly": 0.7666666666666667,
+  "overall": 0.8666666666666667,
+  "ram_load_mb": 2278.4,
+  "ram_peak_mb": 2318.4,
+  "device": "gpu"
  },
  "Phi-4-mini-instruct__Q4_K_M": {
   "answers_correct": 0.7333333333333333,
   "refuses_correctly": 1.0,
   "overall": 0.8666666666666667,
-  "ram_peak_mb": 3425.8
+  "ram_load_mb": 2822.3,
+  "ram_peak_mb": 2864.1,
+  "device": "gpu"
+ },
+ "Qwen2.5-0.5B-Instruct__Q8_0": {
+  "answers_correct": 0.7666666666666667,
+  "refuses_correctly": 0.36666666666666664,
+  "overall": 0.5666666666666667,
+  "ram_load_mb": 935.2,
+  "ram_peak_mb": 962.2,
+  "device": "gpu"
+ },
+ "Qwen2.5-0.5B-Instruct__Q4_K_M": {
+  "answers_correct": 0.7,
+  "refuses_correctly": 0.7666666666666667,
+  "overall": 0.7333333333333333,
+  "ram_load_mb": 808.4,
+  "ram_peak_mb": 859.7,
+  "device": "gpu"
+ },
+ "Qwen3-0.6B__Q8_0": {
+  "answers_correct": 0.9,
+  "refuses_correctly": 0.7,
+  "overall": 0.8,
+  "ram_load_mb": 1042.2,
+  "ram_peak_mb": 1069.5,
+  "device": "gpu"
+ },
+ "Qwen3-0.6B__Q4_K_M": {
+  "answers_correct": 0.9,
+  "refuses_correctly": 0.0,
+  "overall": 0.45,
+  "ram_load_mb": 810.9,
+  "ram_peak_mb": 848.3,
+  "device": "gpu"
+ },
+ "Gemma-3-1B-it__Q4_K_M": {
+  "answers_correct": 0.3333333333333333,
+  "refuses_correctly": 1.0,
+  "overall": 0.6666666666666666,
+  "ram_load_mb": 1201.0,
+  "ram_peak_mb": 1269.2,
+  "device": "gpu"
+ },
+ "Arch-Agent-1.5B__Q4_K_M": {
+  "answers_correct": 0.4666666666666667,
+  "refuses_correctly": 1.0,
+  "overall": 0.7333333333333333,
+  "ram_load_mb": 1373.5,
+  "ram_peak_mb": 1410.7,
+  "device": "gpu"
+ },
+ "xLAM-2-1B-fc-r__Q4_K_M": {
+  "answers_correct": 0.8,
+  "refuses_correctly": 0.8333333333333334,
+  "overall": 0.8166666666666667,
+  "ram_load_mb": 1373.0,
+  "ram_peak_mb": 1410.3,
+  "device": "gpu"
+ },
+ "Qwen3-1.7B__Q4_K_M": {
+  "answers_correct": 0.7666666666666667,
+  "refuses_correctly": 0.6666666666666666,
+  "overall": 0.7166666666666667,
+  "ram_load_mb": 1492.9,
+  "ram_peak_mb": 1530.0,
+  "device": "gpu"
  }
 }

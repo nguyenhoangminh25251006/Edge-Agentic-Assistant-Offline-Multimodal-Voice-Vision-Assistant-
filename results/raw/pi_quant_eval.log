@@ -1,0 +1,58 @@
+C:\Users\HminhLab\AppData\Local\Programs\Python\Python313\Lib\site-packages\torch\cuda\__init__.py:68: FutureWarning: The pynvml package is deprecated. Please install nvidia-ml-py instead. If you did not install pynvml directly, please report this to the maintainers of the package that installed pynvml for you.
+  import pynvml  # type: ignore[import]
+  SmolLM2-135M-Instruct__Q4_K_M: 40/156
+  SmolLM2-135M-Instruct__Q4_K_M: 80/156
+  SmolLM2-135M-Instruct__Q4_K_M: 120/156
+SmolLM2-135M-Instruct__Q4_K_M {"n": 156, "1_intent": 0.1538, "1_over_trigger": 0.0, "1_missed_call": 1.0, "2_tool_select": 0.0, "3_args_cond": null, "3_end2end": 0.0, "4_json_native_valid": null, "4_json_native_schema": null, "4_json_free_parse": 0.0321, "4_json_free_keys": 0.0, "5_short_sentence": 0.375, "5_no_invented_tool": 1.0, "5_free_format": 0.0, "free_end2end": 0.0, "clean_end2end": 0.0, "noisy_end2end": 0.0, "file_mib": 100.6, "hangs": 0, "minutes": 1.1}
+  SmolLM2-135M-Instruct__Q4_0-std: 40/156
+  SmolLM2-135M-Instruct__Q4_0-std: 80/156
+  SmolLM2-135M-Instruct__Q4_0-std: 120/156
+SmolLM2-135M-Instruct__Q4_0-std {"n": 156, "1_intent": 0.1538, "1_over_trigger": 0.0, "1_missed_call": 1.0, "2_tool_select": 0.0, "3_args_cond": null, "3_end2end": 0.0, "4_json_native_valid": null, "4_json_native_schema": null, "4_json_free_parse": 0.0, "4_json_free_keys": 0.0, "5_short_sentence": 0.5, "5_no_invented_tool": 1.0, "5_free_format": 0.0, "free_end2end": 0.0, "clean_end2end": 0.0, "noisy_end2end": 0.0, "file_mib": 87.5, "hangs": 0, "minutes": 1.1}
+  SmolLM2-135M-Instruct__Q4_0-o4: 40/156
+  SmolLM2-135M-Instruct__Q4_0-o4: 80/156
+  SmolLM2-135M-Instruct__Q4_0-o4: 120/156
+SmolLM2-135M-Instruct__Q4_0-o4 {"n": 156, "1_intent": 0.1538, "1_over_trigger": 0.0, "1_missed_call": 1.0, "2_tool_select": 0.0, "3_args_cond": null, "3_end2end": 0.0, "4_json_native_valid": null, "4_json_native_schema": null, "4_json_free_parse": 0.0064, "4_json_free_keys": 0.0, "5_short_sentence": 0.2917, "5_no_invented_tool": 1.0, "5_free_format": 0.0, "free_end2end": 0.0, "clean_end2end": 0.0, "noisy_end2end": 0.0, "file_mib": 74.0, "hangs": 0, "minutes": 1.2}
+  Qwen2.5-0.5B-Instruct__Q4_K_M: 40/156
+  Qwen2.5-0.5B-Instruct__Q4_K_M: 80/156
+  Qwen2.5-0.5B-Instruct__Q4_K_M: 120/156
+Qwen2.5-0.5B-Instruct__Q4_K_M {"n": 156, "1_intent": 0.5833, "1_over_trigger": 0.4167, "1_missed_call": 0.4167, "2_tool_select": 0.4318, "3_args_cond": 1.0, "3_end2end": 0.4318, "4_json_native_valid": 1.0, "4_json_native_schema": 1.0, "4_json_free_parse": 1.0, "4_json_free_keys": 1.0, "5_short_sentence": 0.0417, "5_no_invented_tool": 1.0, "5_free_format": 1.0, "free_end2end": 0.1538, "clean_end2end": 0.5, "noisy_end2end": 0.3636, "file_mib": 379.4, "hangs": 0, "minutes": 1.0}
+  Qwen2.5-0.5B-Instruct__Q4_0-std: 40/156
+  Qwen2.5-0.5B-Instruct__Q4_0-std: 80/156
+  Qwen2.5-0.5B-Instruct__Q4_0-std: 120/156
+Qwen2.5-0.5B-Instruct__Q4_0-std {"n": 156, "1_intent": 0.6218, "1_over_trigger": 0.0833, "1_missed_call": 0.4318, "2_tool_select": 0.3182, "3_args_cond": 0.9286, "3_end2end": 0.2955, "4_json_native_valid": 1.0, "4_json_native_schema": 1.0, "4_json_free_parse": 1.0, "4_json_free_keys": 0.609, "5_short_sentence": 0.4583, "5_no_invented_tool": 1.0, "5_free_format": 0.0, "free_end2end": 0.1346, "clean_end2end": 0.3939, "noisy_end2end": 0.197, "file_mib": 335.8, "hangs": 0, "minutes": 0.9}
+  Qwen2.5-0.5B-Instruct__Q4_0-o4: 40/156
+  Qwen2.5-0.5B-Instruct__Q4_0-o4: 80/156
+  Qwen2.5-0.5B-Instruct__Q4_0-o4: 120/156
+Qwen2.5-0.5B-Instruct__Q4_0-o4 {"n": 156, "1_intent": 0.5321, "1_over_trigger": 0.0833, "1_missed_call": 0.5379, "2_tool_select": 0.2424, "3_args_cond": 1.0, "3_end2end": 0.2424, "4_json_native_valid": 1.0, "4_json_native_schema": 1.0, "4_json_free_parse": 0.9679, "4_json_free_keys": 0.0192, "5_short_sentence": 0.4167, "5_no_invented_tool": 1.0, "5_free_format": 0.0, "free_end2end": 0.0, "clean_end2end": 0.3333, "noisy_end2end": 0.1515, "file_mib": 270.9, "hangs": 0, "minutes": 0.8}
+  Qwen3-0.6B__Q4_K_M: 40/156
+  Qwen3-0.6B__Q4_K_M: 80/156
+  Qwen3-0.6B__Q4_K_M: 120/156
+Qwen3-0.6B__Q4_K_M {"n": 156, "1_intent": 0.6346, "1_over_trigger": 0.0, "1_missed_call": 0.4318, "2_tool_select": 0.4621, "3_args_cond": 1.0, "3_end2end": 0.4621, "4_json_native_valid": 1.0, "4_json_native_schema": 1.0, "4_json_free_parse": 1.0, "4_json_free_keys": 0.9936, "5_short_sentence": 0.25, "5_no_invented_tool": 1.0, "5_free_format": 0.9936, "free_end2end": 0.1538, "clean_end2end": 0.6061, "noisy_end2end": 0.3182, "file_mib": 461.8, "hangs": 0, "minutes": 1.0}
+  Qwen3-0.6B__Q4_0-std: 40/156
+  Qwen3-0.6B__Q4_0-std: 80/156
+  Qwen3-0.6B__Q4_0-std: 120/156
+Qwen3-0.6B__Q4_0-std {"n": 156, "1_intent": 0.1923, "1_over_trigger": 0.0, "1_missed_call": 0.9545, "2_tool_select": 0.0455, "3_args_cond": 1.0, "3_end2end": 0.0455, "4_json_native_valid": 1.0, "4_json_native_schema": 1.0, "4_json_free_parse": 0.4679, "4_json_free_keys": 0.4679, "5_short_sentence": 0.4167, "5_no_invented_tool": 1.0, "5_free_format": 0.4679, "free_end2end": 0.0833, "clean_end2end": 0.0455, "noisy_end2end": 0.0455, "file_mib": 447.4, "hangs": 0, "minutes": 0.9}
+  Qwen3-0.6B__Q4_0-o4: 40/156
+  Qwen3-0.6B__Q4_0-o4: 80/156
+  Qwen3-0.6B__Q4_0-o4: 120/156
+Qwen3-0.6B__Q4_0-o4 {"n": 156, "1_intent": 0.1923, "1_over_trigger": 0.0, "1_missed_call": 0.9545, "2_tool_select": 0.0455, "3_args_cond": 1.0, "3_end2end": 0.0455, "4_json_native_valid": 1.0, "4_json_native_schema": 1.0, "4_json_free_parse": 0.4167, "4_json_free_keys": 0.4167, "5_short_sentence": 0.4583, "5_no_invented_tool": 1.0, "5_free_format": 0.4167, "free_end2end": 0.0577, "clean_end2end": 0.0455, "noisy_end2end": 0.0455, "file_mib": 409.1, "hangs": 0, "minutes": 0.9}
+C:\Users\HminhLab\AppData\Local\Programs\Python\Python313\Lib\site-packages\torch\cuda\__init__.py:68: FutureWarning: The pynvml package is deprecated. Please install nvidia-ml-py instead. If you did not install pynvml directly, please report this to the maintainers of the package that installed pynvml for you.
+  import pynvml  # type: ignore[import]
+  Qwen2.5-0.5B-Instruct__Q4_0-imx: 40/156
+  Qwen2.5-0.5B-Instruct__Q4_0-imx: 80/156
+  Qwen2.5-0.5B-Instruct__Q4_0-imx: 120/156
+Qwen2.5-0.5B-Instruct__Q4_0-imx {"n": 156, "1_intent": 0.6346, "1_over_trigger": 0.2083, "1_missed_call": 0.3939, "2_tool_select": 0.3485, "3_args_cond": 0.9565, "3_end2end": 0.3333, "4_json_native_valid": 1.0, "4_json_native_schema": 1.0, "4_json_free_parse": 1.0, "4_json_free_keys": 0.9872, "5_short_sentence": 0.4167, "5_no_invented_tool": 1.0, "5_free_format": 0.9872, "free_end2end": 0.1154, "clean_end2end": 0.4242, "noisy_end2end": 0.2424, "file_mib": 336.6, "hangs": 0, "minutes": 0.9}
+  Qwen3-0.6B__Q4_0-imx: 40/156
+  Qwen3-0.6B__Q4_0-imx: 80/156
+  Qwen3-0.6B__Q4_0-imx: 120/156
+Qwen3-0.6B__Q4_0-imx {"n": 156, "1_intent": 0.6346, "1_over_trigger": 0.0, "1_missed_call": 0.4318, "2_tool_select": 0.4545, "3_args_cond": 0.9833, "3_end2end": 0.447, "4_json_native_valid": 1.0, "4_json_native_schema": 1.0, "4_json_free_parse": 1.0, "4_json_free_keys": 1.0, "5_short_sentence": 0.1667, "5_no_invented_tool": 1.0, "5_free_format": 1.0, "free_end2end": 0.1538, "clean_end2end": 0.5152, "noisy_end2end": 0.3788, "file_mib": 447.9, "hangs": 0, "minutes": 0.9}
+C:\Users\HminhLab\AppData\Local\Programs\Python\Python313\Lib\site-packages\torch\cuda\__init__.py:68: FutureWarning: The pynvml package is deprecated. Please install nvidia-ml-py instead. If you did not install pynvml directly, please report this to the maintainers of the package that installed pynvml for you.
+  import pynvml  # type: ignore[import]
+  Qwen2.5-0.5B-Instruct__Q4_K_M-o4: 40/156
+  Qwen2.5-0.5B-Instruct__Q4_K_M-o4: 80/156
+  Qwen2.5-0.5B-Instruct__Q4_K_M-o4: 120/156
+Qwen2.5-0.5B-Instruct__Q4_K_M-o4 {"n": 156, "1_intent": 0.5833, "1_over_trigger": 0.25, "1_missed_call": 0.447, "2_tool_select": 0.3788, "3_args_cond": 1.0, "3_end2end": 0.3788, "4_json_native_valid": 1.0, "4_json_native_schema": 1.0, "4_json_free_parse": 1.0, "4_json_free_keys": 1.0, "5_short_sentence": 0.125, "5_no_invented_tool": 1.0, "5_free_format": 1.0, "free_end2end": 0.0769, "clean_end2end": 0.4697, "noisy_end2end": 0.2879, "file_mib": 314.5, "hangs": 0, "minutes": 0.9}
+  Qwen3-0.6B__Q4_K_M-o4: 40/156
+  Qwen3-0.6B__Q4_K_M-o4: 80/156
+  Qwen3-0.6B__Q4_K_M-o4: 120/156
+Qwen3-0.6B__Q4_K_M-o4 {"n": 156, "1_intent": 0.7051, "1_over_trigger": 0.0, "1_missed_call": 0.3485, "2_tool_select": 0.5455, "3_args_cond": 1.0, "3_end2end": 0.5455, "4_json_native_valid": 1.0, "4_json_native_schema": 1.0, "4_json_free_parse": 1.0, "4_json_free_keys": 1.0, "5_short_sentence": 0.2917, "5_no_invented_tool": 1.0, "5_free_format": 1.0, "free_end2end": 0.1538, "clean_end2end": 0.7273, "noisy_end2end": 0.3636, "file_mib": 423.5, "hangs": 0, "minutes": 1.0}

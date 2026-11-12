@@ -5,118 +5,228 @@
   "parallel": 0.0,
   "irrelevance": 0.0,
   "overall": 0.0,
-  "ram_peak_mb": 997.6
+  "ram_load_mb": 665.5,
+  "ram_peak_mb": 896.5,
+  "device": "gpu"
  },
  "Qwen2.5-0.5B-Instruct__F16": {
   "simple": 0.75,
-  "multiple": 0.75,
+  "multiple": 0.6166666666666667,
   "parallel": 0.25,
-  "irrelevance": 0.18333333333333332,
-  "overall": 0.48333333333333334,
-  "ram_peak_mb": 2364.4
+  "irrelevance": 0.15,
+  "overall": 0.44166666666666665,
+  "ram_load_mb": 1383.1,
+  "ram_peak_mb": 1667.5,
+  "device": "gpu"
  },
  "Qwen3-0.6B__F16": {
-  "simple": 0.8833333333333333,
-  "multiple": 0.8,
-  "parallel": 0.03333333333333333,
-  "irrelevance": 0.8166666666666667,
-  "overall": 0.6333333333333333,
-  "ram_peak_mb": 2962.6
+  "simple": 0.9,
+  "multiple": 0.8666666666666667,
+  "parallel": 0.05,
+  "irrelevance": 0.7333333333333333,
+  "overall": 0.6375,
+  "ram_load_mb": 1580.0,
+  "ram_peak_mb": 1863.1,
+  "device": "gpu"
  },
  "Gemma-3-1B-it__F16": {
-  "simple": 0.36666666666666664,
-  "multiple": 0.21666666666666667,
-  "parallel": 0.13333333333333333,
+  "simple": 0.38333333333333336,
+  "multiple": 0.26666666666666666,
+  "parallel": 0.11666666666666667,
   "irrelevance": 0.0,
-  "overall": 0.17916666666666664,
-  "ram_peak_mb": 4154.5
+  "overall": 0.19166666666666668,
+  "ram_load_mb": 2351.1,
+  "ram_peak_mb": 2734.4,
+  "device": "gpu"
  },
  "Arch-Agent-1.5B__F16": {
-  "simple": 0.8833333333333333,
+  "simple": 0.9,
   "multiple": 0.9166666666666666,
-  "parallel": 0.75,
+  "parallel": 0.7333333333333333,
   "irrelevance": 0.55,
   "overall": 0.7749999999999999,
-  "ram_peak_mb": 4468.6
+  "ram_load_mb": 3388.6,
+  "ram_peak_mb": 3681.1,
+  "device": "gpu"
  },
  "xLAM-2-1B-fc-r__F16": {
-  "simple": 0.85,
-  "multiple": 0.85,
-  "parallel": 0.6666666666666666,
+  "simple": 0.8666666666666667,
+  "multiple": 0.8333333333333334,
+  "parallel": 0.65,
   "irrelevance": 0.43333333333333335,
-  "overall": 0.7,
-  "ram_peak_mb": 4471.9
+  "overall": 0.6958333333333333,
+  "ram_load_mb": 3387.8,
+  "ram_peak_mb": 3629.8,
+  "device": "gpu"
  },
  "Qwen3-1.7B__F16": {
-  "simple": 0.8833333333333333,
-  "multiple": 0.9166666666666666,
-  "parallel": 0.6666666666666666,
-  "irrelevance": 0.7666666666666667,
-  "overall": 0.8083333333333332,
-  "ram_peak_mb": 5403.1
+  "simple": 0.8666666666666667,
+  "multiple": 0.9333333333333333,
+  "parallel": 0.8333333333333334,
+  "irrelevance": 0.8,
+  "overall": 0.8583333333333334,
+  "ram_load_mb": 3729.3,
+  "ram_peak_mb": 3996.8,
+  "device": "gpu"
  },
  "Arch-Agent-3B__F16": {
   "simple": 0.95,
-  "multiple": 0.9,
-  "parallel": 0.5,
+  "multiple": 0.9166666666666666,
+  "parallel": 0.5833333333333334,
   "irrelevance": 0.6166666666666667,
-  "overall": 0.7416666666666667,
-  "ram_peak_mb": 7417.7
+  "overall": 0.7666666666666667,
+  "ram_load_mb": 5099.3,
+  "ram_peak_mb": 5099.3,
+  "device": "gpu"
  },
  "Arch-Agent-1.5B__Q8_0": {
-  "simple": 0.8833333333333333,
-  "multiple": 0.9166666666666666,
-  "parallel": 0.75,
-  "irrelevance": 0.5833333333333334,
-  "overall": 0.7833333333333333,
-  "ram_peak_mb": 2989.2
- },
- "xLAM-2-1B-fc-r__Q8_0": {
-  "simple": 0.85,
-  "multiple": 0.85,
-  "parallel": 0.6666666666666666,
-  "irrelevance": 0.43333333333333335,
-  "overall": 0.7,
-  "ram_peak_mb": 2993.2
- },
- "Qwen3-1.7B__Q8_0": {
   "simple": 0.9,
   "multiple": 0.9166666666666666,
-  "parallel": 0.6666666666666666,
-  "irrelevance": 0.7666666666666667,
-  "overall": 0.8125,
-  "ram_peak_mb": 3618.3
+  "parallel": 0.7333333333333333,
+  "irrelevance": 0.5666666666666667,
+  "overall": 0.7791666666666666,
+  "ram_load_mb": 2003.1,
+  "ram_peak_mb": 2061.1,
+  "device": "gpu"
+ },
+ "xLAM-2-1B-fc-r__Q8_0": {
+  "simple": 0.8666666666666667,
+  "multiple": 0.8333333333333334,
+  "parallel": 0.65,
+  "irrelevance": 0.43333333333333335,
+  "overall": 0.6958333333333333,
+  "ram_load_mb": 2002.8,
+  "ram_peak_mb": 2060.1,
+  "device": "gpu"
+ },
+ "Qwen3-1.7B__Q8_0": {
+  "simple": 0.8666666666666667,
+  "multiple": 0.9333333333333333,
+  "parallel": 0.8333333333333334,
+  "irrelevance": 0.7833333333333333,
+  "overall": 0.8541666666666666,
+  "ram_load_mb": 2186.0,
+  "ram_peak_mb": 2267.5,
+  "device": "gpu"
  },
  "Arch-Agent-3B__Q8_0": {
   "simple": 0.95,
   "multiple": 0.9166666666666666,
-  "parallel": 0.48333333333333334,
+  "parallel": 0.6,
   "irrelevance": 0.6166666666666667,
-  "overall": 0.7416666666666667,
-  "ram_peak_mb": 4668.7
+  "overall": 0.7708333333333334,
+  "ram_load_mb": 3570.7,
+  "ram_peak_mb": 3632.8,
+  "device": "gpu"
  },
  "Phi-4-mini-instruct__Q8_0": {
-  "simple": 0.85,
-  "multiple": 0.85,
-  "parallel": 0.7333333333333333,
-  "irrelevance": 0.8833333333333333,
-  "overall": 0.8291666666666666,
-  "ram_peak_mb": 5743.2
+  "simple": 0.95,
+  "multiple": 0.9166666666666666,
+  "parallel": 0.85,
+  "irrelevance": 0.9,
+  "overall": 0.9041666666666667,
+  "ram_load_mb": 4339.2,
+  "ram_peak_mb": 4412.9,
+  "device": "gpu"
  },
  "Arch-Agent-3B__Q4_K_M": {
-  "simple": 0.9166666666666666,
-  "multiple": 0.8666666666666667,
+  "simple": 0.9,
+  "multiple": 0.8833333333333333,
   "parallel": 0.38333333333333336,
+  "irrelevance": 0.55,
+  "overall": 0.6791666666666667,
+  "ram_load_mb": 2278.5,
+  "ram_peak_mb": 2350.5,
+  "device": "gpu"
+ },
+ "Qwen2.5-0.5B-Instruct__Q8_0": {
+  "simple": 0.7666666666666667,
+  "multiple": 0.6166666666666667,
+  "parallel": 0.26666666666666666,
+  "irrelevance": 0.1,
+  "overall": 0.4375,
+  "ram_load_mb": 935.8,
+  "ram_peak_mb": 993.4,
+  "device": "gpu"
+ },
+ "Qwen2.5-0.5B-Instruct__Q4_K_M": {
+  "simple": 0.6833333333333333,
+  "multiple": 0.5166666666666667,
+  "parallel": 0.3,
+  "irrelevance": 0.0,
+  "overall": 0.37500000000000006,
+  "ram_load_mb": 808.7,
+  "ram_peak_mb": 891.2,
+  "device": "gpu"
+ },
+ "Qwen3-0.6B__Q8_0": {
+  "simple": 0.9,
+  "multiple": 0.8333333333333334,
+  "parallel": 0.03333333333333333,
+  "irrelevance": 0.7,
+  "overall": 0.6166666666666667,
+  "ram_load_mb": 1042.5,
+  "ram_peak_mb": 1120.6,
+  "device": "gpu"
+ },
+ "Qwen3-0.6B__Q4_K_M": {
+  "simple": 0.8833333333333333,
+  "multiple": 0.7833333333333333,
+  "parallel": 0.08333333333333333,
+  "irrelevance": 0.55,
+  "overall": 0.575,
+  "ram_load_mb": 811.2,
+  "ram_peak_mb": 896.3,
+  "device": "gpu"
+ },
+ "Gemma-3-1B-it__Q4_K_M": {
+  "simple": 0.2,
+  "multiple": 0.36666666666666664,
+  "parallel": 0.05,
+  "irrelevance": 0.0,
+  "overall": 0.15416666666666667,
+  "ram_load_mb": 1201.3,
+  "ram_peak_mb": 1329.8,
+  "device": "gpu"
+ },
+ "Arch-Agent-1.5B__Q4_K_M": {
+  "simple": 0.9166666666666666,
+  "multiple": 0.9166666666666666,
+  "parallel": 0.6666666666666666,
+  "irrelevance": 0.38333333333333336,
+  "overall": 0.7208333333333333,
+  "ram_load_mb": 1372.9,
+  "ram_peak_mb": 1442.6,
+  "device": "gpu"
+ },
+ "xLAM-2-1B-fc-r__Q4_K_M": {
+  "simple": 0.8666666666666667,
+  "multiple": 0.8666666666666667,
+  "parallel": 0.5833333333333334,
   "irrelevance": 0.48333333333333334,
-  "overall": 0.6625,
-  "ram_peak_mb": 3279.0
+  "overall": 0.7000000000000001,
+  "ram_load_mb": 1373.0,
+  "ram_peak_mb": 1442.9,
+  "device": "gpu"
+ },
+ "Qwen3-1.7B__Q4_K_M": {
+  "simple": 0.8666666666666667,
+  "multiple": 0.9,
+  "parallel": 0.7166666666666667,
+  "irrelevance": 0.7666666666666667,
+  "overall": 0.8125,
+  "ram_load_mb": 1492.7,
+  "ram_peak_mb": 1579.7,
+  "device": "gpu"
  },
  "Phi-4-mini-instruct__Q4_K_M": {
-  "simple": 0.8333333333333334,
-  "multiple": 0.8333333333333334,
-  "parallel": 0.8,
+  "simple": 0.95,
+  "multiple": 0.9,
+  "parallel": 0.8833333333333333,
   "irrelevance": 0.8666666666666667,
-  "overall": 0.8333333333333334,
-  "ram_peak_mb": 4210.1
+  "overall": 0.9,
+  "ram_load_mb": 2751.6,
+  "ram_peak_mb": 2751.6,
+  "device": "gpu"
  }
 }

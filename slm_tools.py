@@ -44,6 +44,16 @@ UNO_Q_RAM_MB = 4096
 TTL_S = 2.0                        # thời gian tối đa cho 1 lần trả lời (theo thiết kế của nhóm)
 QUANT_SHORT = {"F16": "F16", "Q8_0": "Q8", "Q4_K_M": "Q4"}
 
+# Thiết bị chạy model GGUF (llama.cpp) cho các bài đo ĐỘ CHÍNH XÁC (03/04/05/08).
+#   SLM_DEVICE=gpu (mặc định): đẩy toàn bộ layer lên GPU cho nhanh. Điểm chính xác gần như không đổi so với CPU.
+#   SLM_DEVICE=cpu: chạy CPU như trước.
+# Tốc độ/RAM trên phần cứng thật đo trực tiếp trên board (xem results_pi/), không mô phỏng trên PC.
+DEVICE = os.environ.get("SLM_DEVICE", "gpu").lower()
+GPU_LAYERS = 99 if DEVICE == "gpu" else 0
+# Một câu hỏi quá thời hạn này => coi là treo (vd. llama.cpp kẹt vòng lặp grammar tool-call):
+# tắt server, bật lại, tính câu đó là trả lời sai rồi làm tiếp.
+ASK_TIMEOUT_S = float(os.environ.get("SLM_ASK_TIMEOUT", "300"))
+
 
 # ===================================================================== 1. Danh sách model
 def all_configs():
@@ -88,6 +98,13 @@ class _RamMeter:
         self._sample()                 # có ngay số RAM sau khi nạp model
         threading.Thread(target=self._loop, daemon=True).start()
 
+    def retarget(self, pid):
+        """Server được bật lại sau khi treo: đo tiếp tiến trình mới, giữ nguyên đỉnh RAM cũ."""
+        try:
+            self._proc = psutil.Process(pid)
+        except psutil.Error:
+            self._proc = None
+
     def _sample(self):
         if self._proc is None:
             return
@@ -118,8 +135,10 @@ def ram_suspicious(ram_mb, file_mb, n_ctx=2048):
 class Server:
     """Một model đang chạy. Dùng .ask(...) để hỏi nó."""
 
-    def __init__(self, cfg, url, ram, boot_s):
+    def __init__(self, cfg, url, ram, boot_s, proc=None, restart=None):
         self.cfg, self.url, self.ram, self.boot_s = cfg, url, ram, boot_s
+        self._proc, self._restart = proc, restart
+        self.hangs = 0                      # số câu bị treo phải bật lại server
         self._http = requests.Session()
         self._http.trust_env = False        # tránh proxy hệ thống chặn kết nối nội bộ
 
@@ -147,26 +166,65 @@ class Server:
             body["tools"] = tools
         t0, t_first, parts, finish = time.perf_counter(), None, [], None
         calls = {}                                     # index -> {"name", "arguments"(chuỗi ghép dần)}
-        with self._http.post(f"{self.url}/v1/chat/completions", json=body, stream=True, timeout=600) as r:
-            r.raise_for_status()
-            r.encoding = "utf-8"
-            for line in r.iter_lines(decode_unicode=True):
-                if not line or not line.startswith("data:") or line.endswith("[DONE]"):
-                    continue
-                choice = json.loads(line[5:])["choices"][0]
-                delta = choice.get("delta") or {}
-                piece = delta.get("content")
-                if piece:
-                    t_first = t_first or time.perf_counter()
-                    parts.append(piece)
-                for tc in delta.get("tool_calls") or []:
-                    t_first = t_first or time.perf_counter()
-                    slot = calls.setdefault(tc.get("index", 0), {"name": "", "arguments": ""})
-                    fn = tc.get("function") or {}
-                    slot["name"] += fn.get("name") or ""
-                    slot["arguments"] += fn.get("arguments") or ""
-                    parts.append("")                   # đếm như một token đã sinh
-                finish = choice.get("finish_reason") or finish
+        killed = threading.Event()
+        def _kill():
+            killed.set()
+            if self._proc is not None:
+                self._proc.kill()
+        dog = threading.Timer(ASK_TIMEOUT_S, _kill) if self._proc is not None else None
+        if dog:
+            dog.daemon = True
+            dog.start()
+        try:
+            with self._http.post(f"{self.url}/v1/chat/completions", json=body, stream=True, timeout=600) as r:
+                r.raise_for_status()
+                r.encoding = "utf-8"
+                for line in r.iter_lines(decode_unicode=True):
+                    if not line or not line.startswith("data:") or line.endswith("[DONE]"):
+                        continue
+                    event = json.loads(line[5:])
+                    if "error" in event:
+                        raise _ServerError((event["error"] or {}).get("message", str(event["error"])))
+                    choice = event["choices"][0]
+                    delta = choice.get("delta") or {}
+                    piece = delta.get("content")
+                    if piece:
+                        t_first = t_first or time.perf_counter()
+                        parts.append(piece)
+                    for tc in delta.get("tool_calls") or []:
+                        t_first = t_first or time.perf_counter()
+                        slot = calls.setdefault(tc.get("index", 0), {"name": "", "arguments": ""})
+                        fn = tc.get("function") or {}
+                        slot["name"] += fn.get("name") or ""
+                        slot["arguments"] += fn.get("arguments") or ""
+                        parts.append("")                   # đếm như một token đã sinh
+                    finish = choice.get("finish_reason") or finish
+        except _ServerError as e:
+            # llama.cpp không đọc được định dạng tool-call của model (vd. xLAM viết [{"name":..,"arguments":..}]
+            # nhưng bộ parse của server báo "does not match the expected ... format"). Model vẫn trả lời đúng
+            # định dạng gốc của nó => tự render prompt bằng chat template của model, sinh text thô rồi tự parse.
+            if not tools or killed.is_set():
+                raise RuntimeError(f"llama-server: {e}") from e
+            try:
+                parts, calls, finish = self._ask_raw(messages, tools, max_tokens, cache_prompt)
+            except requests.RequestException:
+                if not killed.is_set():
+                    raise
+            t_first = None
+        except (requests.RequestException, ValueError):
+            if not killed.is_set():
+                raise
+        finally:
+            if dog:
+                dog.cancel()
+        if killed.is_set():
+            self.hangs += 1
+            print(f"  [watchdog] {self.cfg['id']}: quá {ASK_TIMEOUT_S:.0f}s, bật lại server", flush=True)
+            self._proc, self.url = self._restart()
+            if self.ram:
+                self.ram.retarget(self._proc.pid)
+            return {"text": "", "tool_calls": [], "first_token_s": None,
+                    "total_s": time.perf_counter() - t0, "tokens": 0, "finish": "timeout"}
         total = time.perf_counter() - t0
         text = "".join(parts)
         if "</think>" in text:
@@ -175,14 +233,47 @@ class Server:
                 "first_token_s": (t_first - t0) if t_first else None,
                 "total_s": total, "tokens": len(parts), "finish": finish}
 
+    def _ask_raw(self, messages, tools, max_tokens, cache_prompt):
+        """Đường dự phòng khi server không parse được tool-call: chat template của model + /completion."""
+        r = self._http.post(f"{self.url}/apply-template", json={"messages": messages, "tools": tools}, timeout=600)
+        r.raise_for_status()
+        r = self._http.post(f"{self.url}/completion", json={
+            "prompt": r.json()["prompt"], "n_predict": max_tokens, "temperature": 0.0,
+            "cache_prompt": cache_prompt}, timeout=600)
+        r.raise_for_status()
+        out = r.json()
+        text, n = out.get("content", ""), out.get("tokens_predicted", 0)
+        calls = {}
+        try:
+            parsed = json.loads(text.strip())
+        except ValueError:
+            parsed = None
+        if isinstance(parsed, dict):
+            parsed = [parsed]
+        if isinstance(parsed, list) and parsed and all(isinstance(c, dict) and "name" in c for c in parsed):
+            for i, c in enumerate(parsed):
+                args = c.get("arguments", c.get("parameters", {}))
+                calls[i] = {"name": str(c["name"]),
+                            "arguments": args if isinstance(args, str) else json.dumps(args, ensure_ascii=False)}
+            text = ""
+        finish = "tool_calls" if calls else ("length" if out.get("stop_type") == "limit" else "stop")
+        return [text] + [""] * max(n - 1, 0), calls, finish
+
+
+class _ServerError(Exception):
+    """llama-server gửi sự kiện lỗi giữa chừng trong luồng trả lời."""
+
 
 @contextmanager
-def server(cfg, n_ctx=2048, threads=None, gpu_layers=0, command=None):
+def server(cfg, n_ctx=2048, threads=None, gpu_layers=None, command=None):
     """Bật model, đưa cho notebook dùng, rồi tự tắt.
 
-    gpu_layers=0: chạy bằng CPU giống UNO Q, nên RAM và tốc độ có thể so sánh.
+    gpu_layers=None: dùng GPU_LAYERS (mặc định GPU, xem SLM_DEVICE ở đầu file).
+    gpu_layers=0: chạy bằng CPU (ẩn GPU).
     command: chỉ dùng khi kiểm thử bằng server giả.
     """
+    if gpu_layers is None:
+        gpu_layers = GPU_LAYERS
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0))
         port = s.getsockname()[1]
@@ -192,18 +283,21 @@ def server(cfg, n_ctx=2048, threads=None, gpu_layers=0, command=None):
         "-t", str(threads or os.cpu_count() or 4), "-ngl", str(gpu_layers), "-b", "64", "-ub", "64",
         "--cache-ram", "0", "-np", "1", "--no-repack",
         "--jinja"]                       # cần để chat_template_kwargs (tắt thinking của Qwen3) có tác dụng
-    t0 = time.perf_counter()
     env = os.environ.copy()
     if gpu_layers == 0:
         env["CUDA_VISIBLE_DEVICES"] = "-1"     # giấu GPU để CUDA không khởi tạo, giống UNO Q
     env["PYTHONIOENCODING"] = "utf-8"
-    proc = subprocess.Popen(cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1,
-                            encoding="utf-8", errors="replace")
-    log = []
-    threading.Thread(target=lambda: [log.append(l.rstrip()) for l in proc.stdout], daemon=True).start()
-    url, http, ram = f"http://127.0.0.1:{port}", requests.Session(), None
+    url, http = f"http://127.0.0.1:{port}", requests.Session()
     http.trust_env = False
-    try:
+    log, cur = [], {"proc": None}
+
+    def spawn():
+        """Bật llama-server và chờ model nạp xong. Trả về tiến trình."""
+        t0 = time.perf_counter()
+        proc = subprocess.Popen(cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+                                bufsize=1, encoding="utf-8", errors="replace")
+        cur["proc"] = proc
+        threading.Thread(target=lambda: [log.append(l.rstrip()) for l in proc.stdout], daemon=True).start()
         while True:                                   # chờ model nạp xong
             if proc.poll() is not None:
                 raise RuntimeError("Model không chạy được (có thể thiếu RAM):\n" + "\n".join(log[-8:]))
@@ -211,24 +305,42 @@ def server(cfg, n_ctx=2048, threads=None, gpu_layers=0, command=None):
                 raise RuntimeError("Model nạp quá 300 giây")
             try:
                 if http.get(f"{url}/v1/models", timeout=1).status_code == 200:
-                    break
+                    return proc, time.perf_counter() - t0
             except requests.RequestException:
                 time.sleep(0.3)
+
+    def restart():
+        old = cur["proc"]
+        if old is not None and old.poll() is None:
+            old.kill()
+        if old is not None:
+            try:
+                old.wait(timeout=8)
+            except subprocess.TimeoutExpired:
+                pass
+        return spawn()[0], url
+
+    ram = None
+    try:
+        proc, boot_s = spawn()
         ram = _RamMeter(proc.pid)
         try:
-            yield Server(cfg, url, ram, time.perf_counter() - t0)
+            yield Server(cfg, url, ram, boot_s, proc=proc, restart=restart)
         except Exception as e:
-            if proc.poll() not in (None, 0):          # server đã chết
+            p = cur["proc"]
+            if p is not None and p.poll() not in (None, 0):          # server đã chết
                 raise RuntimeError(f"{e}\n--- log server ---\n" + "\n".join(log[-15:])) from e
             raise
     finally:
         if ram:
             ram.stop()
-        proc.terminate()
-        try:
-            proc.wait(timeout=8)
-        except subprocess.TimeoutExpired:
-            proc.kill()
+        proc = cur["proc"]
+        if proc is not None:
+            proc.terminate()
+            try:
+                proc.wait(timeout=8)
+            except subprocess.TimeoutExpired:
+                proc.kill()
 
 def load_base(benchmark):
     """Kết quả của bài đo trên model GỐC (HF, chưa nén): mỗi model một dòng.
@@ -246,19 +358,27 @@ def load_base(benchmark):
     return df
 
 # ===================================================================== 3. Chạy và lưu kết quả
-def run_all(benchmark, measure, configs=None, force=False, needs_server=True, require=(), **server_args):
+def run_all(benchmark, measure, configs=None, force=False, needs_server=True, require=(), device=None,
+            **server_args):
     """Chạy hàm `measure(srv)` cho từng cấu hình và lưu vào results/<benchmark>.json.
 
     Chạy lại notebook sẽ bỏ qua cấu hình đã xong (đặt force=True để đo lại).
     require: các cột bắt buộc; kết quả cũ thiếu cột nào thì đo lại (dùng khi bài đo vừa thêm chỉ số mới).
+    device: "gpu"/"cpu". Mỗi kết quả được gắn nhãn thiết bị; kết quả đo trên thiết bị KHÁC sẽ được đo lại.
+        Bài đo cần server tự suy ra từ gpu_layers; bài không cần server thì truyền device=st.DEVICE nếu muốn.
+        Kết quả cũ không có nhãn được coi là đo bằng CPU.
     measure(srv) phải trả về dict các con số. Nếu needs_server=False thì measure nhận cfg thay vì srv.
     """
+    if device is None and needs_server:
+        gl = server_args.get("gpu_layers")
+        device = "gpu" if (GPU_LAYERS if gl is None else gl) > 0 else "cpu"
     RESULTS_DIR.mkdir(exist_ok=True)
     path = RESULTS_DIR / f"{benchmark}.json"
     results = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
     for cfg in configs or all_configs():
         done = cfg["id"] in results and "error" not in results[cfg["id"]]
-        if done and not force and all(k in results[cfg["id"]] for k in require):
+        same_device = device is None or (done and results[cfg["id"]].get("device", "cpu") == device)
+        if done and same_device and not force and all(k in results[cfg["id"]] for k in require):
             print(f"[đã có] {cfg['label']}")
             continue
         if not Path(cfg["file"]).exists():
@@ -284,6 +404,8 @@ def run_all(benchmark, measure, configs=None, force=False, needs_server=True, re
         except Exception as e:                        # hết RAM hay lỗi khác cũng là một kết quả
             metrics = {"error": str(e)[:300]}
             print("   lỗi:", str(e)[:150])
+        if device is not None:
+            metrics["device"] = device
         results[cfg["id"]] = metrics
         path.write_text(json.dumps(results, indent=1), encoding="utf-8")
         print(f"   xong sau {time.time() - t0:.0f}s")
@@ -404,12 +526,13 @@ def lm_eval_scores(srv, limits, fast=True, batch_size=8):
 
 
 # ===================================================================== 5. Đo perplexity (độ "bối rối" của model)
-def perplexity(cfg, text_file, llama_cpp_dir="./llama.cpp", chunks=40):
+def perplexity(cfg, text_file, llama_cpp_dir="./llama.cpp", chunks=40, gpu_layers=None):
     """Càng thấp càng tốt. Chỉ so sánh giữa các mức nén của CÙNG một model."""
     import re
     exe = model_catalog.find_llama_bin("llama-perplexity", llama_cpp_dir)
+    ngl = GPU_LAYERS if gpu_layers is None else gpu_layers
     p = subprocess.run([str(exe), "-m", str(cfg["file"]), "-f", str(text_file), "-c", "512",
-                        "--chunks", str(chunks), "-ngl", "0"], capture_output=True, text=True,
+                        "--chunks", str(chunks), "-ngl", str(ngl)], capture_output=True, text=True,
                        encoding="utf-8", errors="replace")
     m = re.search(r"Final estimate: PPL = ([\d.]+)", p.stdout + p.stderr)
     if not m:
