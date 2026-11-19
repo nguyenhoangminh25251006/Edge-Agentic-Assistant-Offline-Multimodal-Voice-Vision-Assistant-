@@ -1,0 +1,54 @@
+[
+  {
+    "model": "Qwen2.5-0.5B-Instruct",
+    "quant_id": "P2-Q4_K_M",
+    "layers": 22,
+    "size_mib": 358.6,
+    "pp128_tps": 541.44,
+    "tg64_tps": 125.17,
+    "overall_acc": 0.2115,
+    "tool_select_acc": 0.0682,
+    "tool_name_acc": 0.0758,
+    "intent_acc": 0.2436,
+    "over_calling": 0.0
+  },
+  {
+    "model": "Qwen2.5-0.5B-Instruct",
+    "quant_id": "P2-Q4_K_M-imx",
+    "layers": 22,
+    "size_mib": 358.6,
+    "pp128_tps": 526.9,
+    "tg64_tps": 130.39,
+    "overall_acc": 0.1795,
+    "tool_select_acc": 0.0303,
+    "tool_name_acc": 0.0303,
+    "intent_acc": 0.2051,
+    "over_calling": 0.0
+  },
+  {
+    "model": "Qwen2.5-0.5B-Instruct",
+    "quant_id": "P4-Q4_K_M",
+    "layers": 20,
+    "size_mib": 340.1,
+    "pp128_tps": 565.74,
+    "tg64_tps": 136.16,
+    "overall_acc": 0.1538,
+    "tool_select_acc": 0.0,
+    "tool_name_acc": 0.0,
+    "intent_acc": 0.1538,
+    "over_calling": 0.0
+  },
+  {
+    "model": "Qwen2.5-0.5B-Instruct",
+    "quant_id": "P4-Q4_K_M-imx",
+    "layers": 20,
+    "size_mib": 340.1,
+    "pp128_tps": 597.62,
+    "tg64_tps": 139.14,
+    "overall_acc": 0.1538,
+    "tool_select_acc": 0.0,
+    "tool_name_acc": 0.0,
+    "intent_acc": 0.1538,
+    "over_calling": 0.0
+  }
+]

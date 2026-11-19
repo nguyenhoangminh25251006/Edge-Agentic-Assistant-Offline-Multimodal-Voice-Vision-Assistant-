@@ -2,22 +2,32 @@
 # Python environments and generated files
 __pycache__/
 *.py[cod]
+*$py.class
+*.so
 .venv/
 venv/
 env/
+.cache/
+.history/
 .env
 .env.*
 !.env.example
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
-.ipynb_checkpoints/
+.tox/
+.nox/
 .coverage
 .coverage.*
 /coverage.xml
+.hypothesis/
+.pyre/
+.pytype/
+.ipynb_checkpoints/
 /htmlcov/
 /dist/
 *.egg-info/
+pip-wheel-metadata/
 
 # Downloaded models and datasets
 /models/
@@ -25,12 +35,49 @@ env/
 /piper_voices/
 /data/
 /datasets/
+*.gguf
+*.gguf.part
+*.safetensors
+*.bin
+*.onnx
+*.pkl
+*.pickle
+*.npz
+*.npy
 
 # Local llama.cpp checkout and build output
 /llama.cpp/
 /build/
+*.o
+*.obj
+*.a
+*.lib
+*.exe
+*.dll
+*.pdb
+*.ilk
+
+# Benchmark and experiment output
+/results/raw_*/
+/results_pi/build/
+/results_pi/logs/
+*.bak
+*.tmp
+*.temp
+*.log
+doc_paragraphs.txt
+test_tbl.docx
+wiki.test.raw
+
+# IDE and editor files
+.vscode/
+.idea/
+*.code-workspace
+*.swp
+*.swo
 
 # Operating system files
 .DS_Store
 Thumbs.db
 Desktop.ini
+*.lnk
