@@ -1,0 +1,6 @@
+# PCB Defect and Quality Inspection Alerts
+
+Warning. Defect detected on printed circuit board.
+Missing surface-mount capacitor detected at slot C14.
+Board misalignment detected on conveyor rail.
+Printed circuit board inspection verified. Panel passed.

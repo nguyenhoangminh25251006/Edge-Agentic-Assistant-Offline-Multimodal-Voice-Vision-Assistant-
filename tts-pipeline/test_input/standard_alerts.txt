@@ -1,0 +1,8 @@
+# Standard Conveyor Operational Alerts
+# Each line will be synthesized and spoken in sequence.
+
+Conveyor belt started.
+Conveyor belt paused.
+Conveyor belt resumed.
+Conveyor belt stopped.
+Emergency stop activated. Conveyor halted.

@@ -1,0 +1,6 @@
+# Guided Jam Recovery and Troubleshooting Wizard
+
+Step one. Ensure the physical emergency stop button is released.
+Step two. Manually inspect and clear any obstructed circuit boards from the conveyor guide rails.
+Step three. Verify that the photoelectric beam sensor indicates a clear path.
+Step four. Press the resume switch on the web dashboard to re-energize the drive motor.

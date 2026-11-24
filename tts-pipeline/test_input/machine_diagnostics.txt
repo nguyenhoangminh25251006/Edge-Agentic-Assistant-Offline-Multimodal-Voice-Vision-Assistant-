@@ -1,0 +1,6 @@
+# Machine Diagnostics, Motor Overload & Telemetry Warnings
+
+Warning. Motor current limit exceeded.
+Motor surface temperature is forty-two degrees Celsius. Normal operating limits.
+Board jam detected. Optical encoder indicates zero displacement.
+Heartbeat timeout from real-time microcontroller. Safe stop engaged.
