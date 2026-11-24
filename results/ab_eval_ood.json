@@ -1,0 +1,94 @@
+{
+ "excluded": [
+  "ood-get_last_stop_reason-17-c",
+  "ood-get_last_stop_reason-17-n",
+  "ood-none-50-c",
+  "ood-none-50-n",
+  "ood-request_set_speed-35-c",
+  "ood-request_set_speed-35-n",
+  "ood-trigger_audio_alarm-8-c",
+  "ood-trigger_audio_alarm-9-c",
+  "ood-trigger_audio_alarm-9-n"
+ ],
+ "n_kept": 95,
+ "table": {
+  "AB Q4_K_M": {
+   "n": 95,
+   "2_tool_select": 0.9753,
+   "3_end2end": 0.9753,
+   "1_over_trigger": 0.0,
+   "1_missed_call": 0.0,
+   "clean_end2end": 0.975,
+   "noisy_end2end": 0.9756,
+   "errors": 0,
+   "mean_out_tokens": 39.6,
+   "all104": {
+    "n": 104,
+    "2_tool_select": 0.9773,
+    "3_end2end": 0.9773,
+    "1_over_trigger": 0.0,
+    "1_missed_call": 0.0,
+    "clean_end2end": 0.9773,
+    "noisy_end2end": 0.9773
+   }
+  },
+  "AB Q4_K_M-o4": {
+   "n": 95,
+   "2_tool_select": 0.9753,
+   "3_end2end": 0.9753,
+   "1_over_trigger": 0.0,
+   "1_missed_call": 0.0,
+   "clean_end2end": 0.975,
+   "noisy_end2end": 0.9756,
+   "errors": 0,
+   "mean_out_tokens": 39.6,
+   "all104": {
+    "n": 104,
+    "2_tool_select": 0.9773,
+    "3_end2end": 0.9773,
+    "1_over_trigger": 0.0,
+    "1_missed_call": 0.0,
+    "clean_end2end": 0.9773,
+    "noisy_end2end": 0.9773
+   }
+  },
+  "AB Q4_K_M-himx-o4": {
+   "n": 95,
+   "2_tool_select": 0.9753,
+   "3_end2end": 0.9753,
+   "1_over_trigger": 0.0,
+   "1_missed_call": 0.0,
+   "clean_end2end": 0.975,
+   "noisy_end2end": 0.9756,
+   "errors": 0,
+   "mean_out_tokens": 39.6,
+   "all104": {
+    "n": 104,
+    "2_tool_select": 0.9773,
+    "3_end2end": 0.9773,
+    "1_over_trigger": 0.0,
+    "1_missed_call": 0.0,
+    "clean_end2end": 0.9773,
+    "noisy_end2end": 0.9773
+   }
+  },
+  "Qwen3-0.6B__Q4_K_M-himx-o4 (native)": {
+   "n": 95,
+   "2_tool_select": 0.7407,
+   "3_end2end": 0.7284,
+   "1_over_trigger": 0.0,
+   "1_missed_call": 0.1728,
+   "clean_end2end": 0.775,
+   "noisy_end2end": 0.6829
+  },
+  "Qwen2.5-0.5B-Instruct__Q4_K_M-himx-o4 (native)": {
+   "n": 95,
+   "2_tool_select": 0.3827,
+   "3_end2end": 0.321,
+   "1_over_trigger": 0.5,
+   "1_missed_call": 0.3704,
+   "clean_end2end": 0.375,
+   "noisy_end2end": 0.2683
+  }
+ }
+}

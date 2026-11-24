@@ -1,0 +1,155 @@
+{
+ "ood_excluded": [
+  "ood-get_last_stop_reason-17-c",
+  "ood-get_last_stop_reason-17-n",
+  "ood-none-50-c",
+  "ood-none-50-n",
+  "ood-request_set_speed-35-c",
+  "ood-request_set_speed-35-n",
+  "ood-trigger_audio_alarm-8-c",
+  "ood-trigger_audio_alarm-9-c",
+  "ood-trigger_audio_alarm-9-n"
+ ],
+ "table": {
+  "ABn Q4_K_M-o4": {
+   "ood": {
+    "n": 95,
+    "2_tool_select": 1.0,
+    "3_end2end": 1.0,
+    "1_over_trigger": 0.0,
+    "1_missed_call": 0.0,
+    "5_short_sentence": 1.0,
+    "errors": 0,
+    "clean_end2end": 1.0,
+    "noisy_end2end": 1.0
+   },
+   "156": {
+    "n": 156,
+    "2_tool_select": 1.0,
+    "3_end2end": 1.0,
+    "1_over_trigger": 0.0,
+    "1_missed_call": 0.0,
+    "5_short_sentence": 1.0,
+    "errors": 0,
+    "clean_end2end": 1.0,
+    "noisy_end2end": 1.0
+   },
+   "held": {
+    "n": 156,
+    "2_tool_select": 0.9848,
+    "3_end2end": 0.9773,
+    "1_over_trigger": 0.0833,
+    "1_missed_call": 0.0,
+    "5_short_sentence": 0.9167,
+    "errors": 0,
+    "clean_end2end": 0.9683,
+    "noisy_end2end": 0.9855
+   }
+  },
+  "ABn Q4_K_M-himx-o4": {
+   "ood": {
+    "n": 95,
+    "2_tool_select": 1.0,
+    "3_end2end": 1.0,
+    "1_over_trigger": 0.0,
+    "1_missed_call": 0.0,
+    "5_short_sentence": 1.0,
+    "errors": 0,
+    "clean_end2end": 1.0,
+    "noisy_end2end": 1.0
+   },
+   "156": {
+    "n": 156,
+    "2_tool_select": 1.0,
+    "3_end2end": 1.0,
+    "1_over_trigger": 0.0,
+    "1_missed_call": 0.0,
+    "5_short_sentence": 1.0,
+    "errors": 0,
+    "clean_end2end": 1.0,
+    "noisy_end2end": 1.0
+   },
+   "held": {
+    "n": 156,
+    "2_tool_select": 0.9848,
+    "3_end2end": 0.9848,
+    "1_over_trigger": 0.0833,
+    "1_missed_call": 0.0,
+    "5_short_sentence": 0.9167,
+    "errors": 0,
+    "clean_end2end": 0.9841,
+    "noisy_end2end": 0.9855
+   }
+  },
+  "Qwen3-0.6B Q4_K_M-himx-o4 (gốc)": {
+   "ood": {
+    "n": 95,
+    "2_tool_select": 0.6914,
+    "3_end2end": 0.6914,
+    "1_over_trigger": 0.1429,
+    "1_missed_call": 0.1728,
+    "5_short_sentence": 0.1429,
+    "errors": 0,
+    "clean_end2end": 0.7,
+    "noisy_end2end": 0.6829
+   },
+   "156": {
+    "n": 156,
+    "2_tool_select": 0.7197,
+    "3_end2end": 0.7197,
+    "1_over_trigger": 0.0417,
+    "1_missed_call": 0.197,
+    "5_short_sentence": 0.25,
+    "errors": 0,
+    "clean_end2end": 0.7879,
+    "noisy_end2end": 0.6515
+   },
+   "held": {
+    "n": 156,
+    "2_tool_select": 0.7121,
+    "3_end2end": 0.6591,
+    "1_over_trigger": 0.4583,
+    "1_missed_call": 0.1591,
+    "5_short_sentence": 0.0833,
+    "errors": 0,
+    "clean_end2end": 0.6984,
+    "noisy_end2end": 0.6232
+   }
+  },
+  "Qwen2.5-0.5B-Instruct Q4_K_M-himx-o4 (gốc)": {
+   "ood": {
+    "n": 95,
+    "2_tool_select": 0.4691,
+    "3_end2end": 0.4074,
+    "1_over_trigger": 0.7143,
+    "1_missed_call": 0.0617,
+    "5_short_sentence": 0.0,
+    "errors": 0,
+    "clean_end2end": 0.425,
+    "noisy_end2end": 0.3902
+   },
+   "156": {
+    "n": 156,
+    "2_tool_select": 0.5682,
+    "3_end2end": 0.5303,
+    "1_over_trigger": 0.5833,
+    "1_missed_call": 0.1288,
+    "5_short_sentence": 0.0417,
+    "errors": 0,
+    "clean_end2end": 0.5455,
+    "noisy_end2end": 0.5152
+   },
+   "held": {
+    "n": 156,
+    "2_tool_select": 0.5,
+    "3_end2end": 0.4394,
+    "1_over_trigger": 0.8333,
+    "1_missed_call": 0.0455,
+    "5_short_sentence": 0.0417,
+    "errors": 0,
+    "clean_end2end": 0.4286,
+    "noisy_end2end": 0.4493
+   }
+  }
+ }
+}

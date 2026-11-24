@@ -4,7 +4,7 @@ Cách đo (giống lúc chạy thật):
   * prompt đặt phần cố định lên đầu để llama.cpp dùng lại cache,
   * đầu ra bị ép theo JSON schema (tên công cụ và giá trị tham số chỉ được nằm trong danh sách cho phép),
   * nhãn action_type suy ra bằng code từ tool_call, vì model nhỏ hay ghi sai nhãn này,
-  * câu mà model trả JSON hỏng hoặc bị cắt vẫn được tính là sai (không bị bỏ).
+  * câu mà model trả JSON hỏng, bị cắt, hoặc server lỗi vẫn được tính là sai (không bị bỏ khỏi mẫu số).
 
 Ba bộ câu hỏi:  test156() là bộ gốc của dự án, heldout() là bộ giữ riêng chưa từng thấy khi huấn luyện,
 load_real() là câu thật do nhóm ghi lại (nếu có).
@@ -102,13 +102,15 @@ BROKEN = {"valid": False, "tool_ok": False, "args_ok": False, "over_trigger": Fa
 def run(srv, cases, cache=True, tools_for=None):
     """Hỏi model từng câu, trả về danh sách (ca, đầu ra thô, điểm).
     tools_for: hàm ca -> danh sách tên công cụ đưa vào prompt (mặc định: cả 11, không dùng bộ chọn công cụ)."""
-    rows, broken = [], 0
+    rows, broken, errors = [], 0, 0
     for i, case in enumerate(cases):
         names = tools_for(case) if tools_for else NAMES
         try:
             out = srv.ask(messages_cached(case, names), grammar=schema_v2(names), cache_prompt=cache)
-        except Exception as error:                      # lỗi server hoặc mạng: bỏ qua câu này
+        except Exception as error:                      # lỗi server hoặc mạng: vẫn giữ câu, tính là sai
             print(f"LỖI server ở câu {i} ({case['tool']}): {error}")
+            errors += 1
+            rows.append((case, {"text": "", "tokens": 0, "total_s": float("nan"), "error": str(error)}, BROKEN))
             continue
         try:
             score = T.score(case, normalize(out["text"]))
@@ -118,21 +120,31 @@ def run(srv, cases, cache=True, tools_for=None):
         rows.append((case, out, score))
     if broken:
         print(f"{broken} câu model trả JSON hỏng hoặc bị cắt (đã tính là sai)")
+    if errors:
+        print(f"{errors} câu lỗi server (đã tính là sai, không bỏ khỏi mẫu số)")
     return rows
 
 
 def summary(rows):
-    """Các con số tóm tắt: độ chính xác, gọi thừa tool, số token, thời gian."""
+    """Các con số tóm tắt: độ chính xác, gọi thừa tool, số token, thời gian.
+
+    ok / tool_ok tính trên MỌI câu (gồm câu ngoài phạm vi) như trước. Để so với pi_quant_eval (tool_select,
+    end2end chỉ tính trên câu CẦN tool) dùng need_tool_select / need_end2end."""
     n = len(rows)
     tool_ok = sum(s["tool_ok"] for _, _, s in rows)
     args_ok = sum(s["args_ok"] for _, _, s in rows if s["tool_ok"])
     out_of_scope = [s for c, _, s in rows if c["tool"] is None]
-    seconds = sorted(o["total_s"] for _, o, _ in rows)
+    need = [s for c, _, s in rows if c["tool"] is not None]
+    seconds = sorted(o["total_s"] for _, o, _ in rows if not o.get("error"))
+    k = len(seconds)
     return {"n": n, "ok": round(sum(s["ok"] for _, _, s in rows) / n, 3), "tool_ok": round(tool_ok / n, 3),
             "args_ok|tool_ok": round(args_ok / max(tool_ok, 1), 3),
             "over_trigger": round(sum(s["over_trigger"] for s in out_of_scope) / max(len(out_of_scope), 1), 3),
+            "need_tool_select": round(sum(s["tool_ok"] for s in need) / max(len(need), 1), 3),
+            "need_end2end": round(sum(s["ok"] for s in need) / max(len(need), 1), 3),
+            "server_errors": sum(bool(o.get("error")) for _, o, _ in rows),
             "tok_tb": round(sum(o["tokens"] for _, o, _ in rows) / n, 1),
-            "p50_s": round(seconds[n // 2], 2), "p95_s": round(seconds[int(n * .95)], 2)}
+            "p50_s": round(seconds[k // 2], 2) if k else None, "p95_s": round(seconds[int(k * .95)], 2) if k else None}
 
 
 def wrong_cases(rows, limit=15):

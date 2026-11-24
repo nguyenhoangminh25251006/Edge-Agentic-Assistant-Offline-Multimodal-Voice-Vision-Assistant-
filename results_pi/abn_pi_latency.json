@@ -1,0 +1,124 @@
+{
+ "setup": "Raspberry Pi 3B, 4x Cortex-A53 @1400 MHz, fan on, llama-server -t 4 -c 2048 -np 1 -cram 0 -fa on --jinja, prompt cache on, temperature 0; 6 questions x 2 rounds per model (script results_pi/scripts/ab_pi_latency.py)",
+ "runs": {
+  "run2": {
+   "thermal": {
+    "temp_max_c": 66.6,
+    "throttle_flags_seen": [
+     "throttled=0x20000"
+    ]
+   },
+   "models": {
+    "AB": {
+     "n": 12,
+     "crashes": 0,
+     "wall_s_median": 12.91,
+     "wall_s_max": 15.25,
+     "prompt_ms_median": 5668.0,
+     "gen_tokens_mean": 40,
+     "gen_ms_median": 8906.5,
+     "gen_tps_median": 4.59,
+     "warm_prefix_tokens": 839,
+     "warm_prefix_s": 75.4,
+     "answers": [
+      "{\"action_type\": \"TOOL_REQUEST\", \"tool_call\": {\"tool_name\": \"get_live_telemetry\",",
+      "{\"action_type\": \"TOOL_REQUEST\", \"tool_call\": {\"tool_name\": \"trigger_audio_alarm\"",
+      "{\"action_type\": \"TOOL_REQUEST\", \"tool_call\": {\"tool_name\": \"request_set_speed\", ",
+      "{\"action_type\": \"TOOL_REQUEST\", \"tool_call\": {\"tool_name\": \"get_last_stop_reason",
+      "{\"action_type\": \"TOOL_REQUEST\", \"tool_call\": {\"tool_name\": \"set_led_indicator\", ",
+      "{\"action_type\": \"DIRECT_ANSWER\", \"tool_call\": null, \"response_text\": \"Sorry, I c"
+     ]
+    },
+    "Qwen3": {
+     "n": 12,
+     "crashes": 0,
+     "wall_s_median": 23.95,
+     "wall_s_max": 36.69,
+     "prompt_ms_median": 13450.5,
+     "gen_tokens_mean": 25.7,
+     "gen_ms_median": 14334.5,
+     "gen_tps_median": 1.77,
+     "warm_prefix_tokens": 1056,
+     "warm_prefix_s": 125.1,
+     "answers": [
+      [
+       "get_last_stop_reason"
+      ],
+      [
+       "trigger_audio_alarm"
+      ],
+      [
+       "request_line_stop"
+      ],
+      "The line halted due to a jammed conveyor belt.",
+      [
+       "set_led_indicator"
+      ],
+      "The rain falls softly, gentle and soft,  \nA gentle touch on the ground, a soft t"
+     ]
+    }
+   }
+  },
+  "run3": {
+   "thermal": {
+    "temp_max_c": 68.2,
+    "throttle_flags_seen": [
+     "throttled=0x20000"
+    ]
+   },
+   "models": {
+    "ABn": {
+     "n": 12,
+     "crashes": 0,
+     "wall_s_median": 8.7,
+     "wall_s_max": 11.53,
+     "prompt_ms_median": 5152.5,
+     "gen_tokens_mean": 21.8,
+     "gen_ms_median": 5387.0,
+     "gen_tps_median": 4.27,
+     "warm_prefix_tokens": 1052,
+     "warm_prefix_s": 96.3,
+     "answers": [
+      [
+       "get_live_telemetry"
+      ],
+      [
+       "trigger_audio_alarm"
+      ],
+      [
+       "request_set_speed"
+      ],
+      [
+       "get_last_stop_reason"
+      ],
+      [
+       "set_led_indicator"
+      ],
+      "Sorry, I can only help with the conveyor line."
+     ]
+    },
+    "AB": {
+     "n": 12,
+     "crashes": 0,
+     "wall_s_median": 12.82,
+     "wall_s_max": 15.13,
+     "prompt_ms_median": 5626.5,
+     "gen_tokens_mean": 40,
+     "gen_ms_median": 8806.0,
+     "gen_tps_median": 4.6,
+     "warm_prefix_tokens": 839,
+     "warm_prefix_s": 75.7,
+     "answers": [
+      "{\"action_type\": \"TOOL_REQUEST\", \"tool_call\": {\"tool_name\": \"get_live_telemetry\",",
+      "{\"action_type\": \"TOOL_REQUEST\", \"tool_call\": {\"tool_name\": \"trigger_audio_alarm\"",
+      "{\"action_type\": \"TOOL_REQUEST\", \"tool_call\": {\"tool_name\": \"request_set_speed\", ",
+      "{\"action_type\": \"TOOL_REQUEST\", \"tool_call\": {\"tool_name\": \"get_last_stop_reason",
+      "{\"action_type\": \"TOOL_REQUEST\", \"tool_call\": {\"tool_name\": \"set_led_indicator\", ",
+      "{\"action_type\": \"DIRECT_ANSWER\", \"tool_call\": null, \"response_text\": \"Sorry, I c"
+     ]
+    }
+   }
+  }
+ },
+ "note": "run1 (no fan, throttled to 765-926 MHz at 82-85 C) is not used. Qwen3 answers wrong on 4/6 questions per round (temperature->get_last_stop_reason, set speed 20 rpm->request_line_stop, why-stopped answered in text, poem)."
+}

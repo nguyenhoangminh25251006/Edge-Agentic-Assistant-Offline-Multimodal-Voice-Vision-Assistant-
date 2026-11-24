@@ -101,7 +101,9 @@ def parse_lines(reply):
 # 2. Kiểm tra từng câu: có đúng ý đã yêu cầu không
 # =====================================================================================
 def has(text, words):
-    """Có từ nào bắt đầu bằng một trong `words` không (so khớp tiền tố, ví dụ 'temp' khớp 'temperature')."""
+    """Có từ nào bắt đầu bằng một trong `words` không (so khớp tiền tố, ví dụ 'temp' khớp 'temperature').
+    Từ ngắn dễ khớp nhầm thì ghi kèm \\b để bắt nguyên từ: r"on\\b" không khớp 'once', r"off\\b" không khớp 'office',
+    r"rest\\b" không khớp 'restart'."""
     return re.search(r"\b(?:" + "|".join(words) + ")", text.lower()) is not None
 
 
@@ -111,19 +113,21 @@ def mentions_number(text, n):
 
 
 METRIC_KW = {"current": ["current", "amp", "load", "power", "electric"], "temperature": ["temp", "hot", "heat", "thermal", "warm"],
-             "speed": ["speed", "rpm", "fast", "velocity", "rotat"], "product_count": ["count", "product", "item", "part", "piece", "output", "unit"],
+             "speed": ["speed", "rpm", "fast", "velocity", "rotat"], "product_count": ["count", "product", "item", r"parts?\b", "piece", "output", "unit"],
              "all_events": ["event", "incident", "everything", "happen", "log", "record", "alarm"],
-             "all": ["all", "every", "whole", "full", "panel", "sensor", "reading"]}
-PERIOD_KW = {"last_hour": ["hour", "60", "sixty"], "today": ["today", "day", "morning"], "this_shift": ["shift"]}
+             "all": [r"all\b", "every", "whole", "full", "panel", "sensor", "reading"]}
+PERIOD_KW = {"last_hour": ["hour", r"60\b", "sixty"], "today": ["today", r"day\b", "morning"], "this_shift": ["shift"]}
 HISTORY_WORDS = ["history", "past", "last", "previous", "earlier", "log", "record", "trend", "ago", "back", "archive", "before", "histor"]
-LIVE_WORDS = ["now", "live", "current", "right", "moment", "instant", "fresh", "latest", "this"]
+# bỏ "this": khớp cả "this shift" (thống kê theo ca, không phải số đo tức thời)
+LIVE_WORDS = ["now", "live", "current", "right", "moment", "instant", "fresh", "latest"]
 PATTERN_KW = {"solid": ["solid", "steady", "constant", "still", "stable", "continuous", "fixed", "not blink"],
               "blinking": ["blink", "flash", "puls", "flicker"]}
 CODE_KW = {"ALERT_JAM": ["jam", "block", "stuck", "clog", "obstruct"], "ALERT_OVERTEMP": ["hot", "heat", "temp", "overheat", "burn"],
            "ALERT_MANUAL_CHECK": ["check", "inspect", "look", "technician", "maintenance", "manual", "someone", "person", "hand", "examine"]}
 SOUND_KW = ["alarm", "siren", "buzz", "alert", "warn", "speaker", "announce", "horn", "beep", "sound", "tell", "page", "call", "ring", "notify"]
-STOP_KW = ["stop", "halt", "pause", "shut", "off", "kill", "freeze", "park", "end", "cut", "down", "standstill", "cease", "rest"]
-WHY_KW = ["why", "reason", "cause", "happen", "went wrong", "trigger", "behind", "explain", "what"]
+STOP_KW = ["stop", "halt", "pause", "shut", r"off\b", "kill", "freeze", "park", r"end\b", "cut", "down", "standstill", "cease", r"rest\b"]
+WHY_KW = ["why", "reason", "cause", "happen", "went wrong", "trigger", "behind", "explain",
+          r"what (?:made|stopped|halted|shut|brought)"]
 
 
 def _blackbox(a, t):
@@ -138,17 +142,19 @@ def _alarm(a, t):
 
 def _led(a, t):
     others = {"green", "yellow", "red"} - {a["color"]}
-    return a["color"] in t.lower() and not any(c in t.lower() for c in others) and has(t, PATTERN_KW[a["pattern"]]) \
+    return has(t, [a["color"] + r"\b"]) and not has(t, [c + r"\b" for c in others]) and has(t, PATTERN_KW[a["pattern"]]) \
         and has(t, ["light", "lamp", "led", "indicator", "beacon", "tower", "signal", "status"])
 
 
 RULES = {
     "query_blackbox_logs": _blackbox,
-    "request_line_restart": lambda a, t: mentions_number(t, a["target_speed_rpm"]) and has(t, ["restart", "resume", "start", "again", "going", "back", "on", "run", "relaunch", "power", "fire", "bring"]) and not has(t, ["why"]),
+    "request_line_restart": lambda a, t: mentions_number(t, a["target_speed_rpm"]) and has(t, ["restart", "resume", "start", "again", "going", "back", r"on\b", "run", "relaunch", "power", "fire", "bring"]) and not has(t, ["why"]),
     "trigger_audio_alarm": _alarm,
     "get_live_telemetry": lambda a, t: has(t, METRIC_KW[a["metric"]]) and has(t, LIVE_WORDS) and not has(t, ["history", "past", "earlier", "ago", "log", "previous"]),
     "get_last_stop_reason": lambda a, t: has(t, WHY_KW) and has(t, ["stop", "halt", "shut", "down", "breakdown", "standstill", "stall"]),
-    "request_line_stop": lambda a, t: has(t, STOP_KW) and not has(t, ["why", "reason", "cause", "happen", "last"]),
+    # không có số / rpm / "slow": câu "slow it down to 20" là đổi tốc độ, không phải dừng
+    "request_line_stop": lambda a, t: has(t, STOP_KW) and not has(t, ["why", "reason", "cause", "happen", "last", "rpm", "slow", "speed"])
+                                      and re.search(r"\d", t) is None,
     "get_production_stats": lambda a, t: has(t, PERIOD_KW[a["period"]]) and has(t, ["produc", "made", "make", "unit", "item", "count", "throughput", "jam", "output", "finish", "total", "manufactur"]) and not has(t, ["defect", "reject", "camera", "faulty"]),
     "get_inspection_summary": lambda a, t: has(t, PERIOD_KW[a["period"]]) and has(t, ["defect", "reject", "bad", "faulty", "fail", "camera", "inspect", "vision", "flag", "quality", "damaged", "scrap"]),
     "request_set_speed": lambda a, t: mentions_number(t, a["target_speed_rpm"]) and has(t, ["speed", "rpm", "faster", "slower", "adjust", "change", "set", "run", "make", "slow", "bump", "dial", "put"]) and not has(t, ["restart", "resume", "again", "relaunch"]),

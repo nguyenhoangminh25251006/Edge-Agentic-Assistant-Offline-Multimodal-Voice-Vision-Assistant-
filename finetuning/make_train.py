@@ -350,14 +350,30 @@ def build_split(split, per_tool, per_oos, seed):
 
 
 def check_no_leak(train, held):
-    """Không câu train nào được trùng với held hoặc với bộ test 156 câu. Trả về số câu trùng test của held."""
-    test = {normalize(c["context"]["user_prompt"]) for c in T.make_cases()}
-    tr = {normalize(c["context"]["user_prompt"]) for c in train}
-    he = {normalize(c["context"]["user_prompt"]) for c in held}
-    bad = (tr & test) | (tr & he)
-    if bad:
-        raise ValueError(f"Rò rỉ dữ liệu giữa train và test/held: {sorted(bad)[:8]}")
-    return len(he & test)
+    """Không câu train nào được trùng với held hoặc với bộ test 156 câu. Trả về số câu trùng test của held.
+
+    So 2 mức: nguyên văn (sau normalize) VÀ mẫu câu (che mọi số thành #), vì cùng một mẫu câu chỉ khác số
+    ("set speed to 30 rpm" / "... 45 rpm") vẫn là lộ đề."""
+    def keys(cases, masked):
+        out = {normalize(c["context"]["user_prompt"]) for c in cases}
+        return {mask_numbers(t) for t in out} if masked else out
+    test, tr, he = T.make_cases(), train, held
+    for masked in (False, True):
+        bad = (keys(tr, masked) & keys(test, masked)) | (keys(tr, masked) & keys(he, masked))
+        if bad:
+            raise ValueError(f"Rò rỉ dữ liệu giữa train và test/held ({'mẫu câu' if masked else 'nguyên văn'}): "
+                             f"{sorted(bad)[:8]}")
+    return len(keys(he, False) & keys(test, False))
+
+
+def mask_numbers(text):
+    """Che số (chữ số và số viết bằng chữ) để so trùng ở mức mẫu câu."""
+    return re.sub(r"\b(?:\d+|" + "|".join(_NUM_WORDS) + r")\b", "#", text)
+
+
+_NUM_WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve",
+              "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen", "twenty", "thirty",
+              "forty", "fifty", "sixty", "seventy", "eighty", "ninety", "hundred"]
 
 
 def build_dataset(per_tool=150, per_oos=300, held_per_tool=12, held_oos=24, seed=7):

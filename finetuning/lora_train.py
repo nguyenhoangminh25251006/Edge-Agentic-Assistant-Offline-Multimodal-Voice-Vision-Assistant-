@@ -8,12 +8,16 @@ Hàm chính:  train_lora(...)  ->  lưu model đã gộp vào out_dir và trả 
 import json
 import math
 import random
+import re
 import time
+from collections import Counter
 from pathlib import Path
 
-def build_example(tok, messages, max_len):
-    """Trả về (input_ids, labels) hoặc None nếu quá dài. labels = -100 ở phần prompt, nên chỉ học phần trả lời."""
-    prompt = tok.apply_chat_template(messages[:2], add_generation_prompt=True, tokenize=False)
+def build_example(tok, messages, max_len, tools=None):
+    """Trả về (input_ids, labels) hoặc None nếu quá dài. labels = -100 ở phần prompt, nên chỉ học phần trả lời.
+    tools: danh sách tool (định dạng OpenAI) để chat template tự chèn khối <tools> như llama-server --jinja
+    (dùng khi train đầu ra <tool_call> native). Không có tools thì giống hệt bản cũ."""
+    prompt = tok.apply_chat_template(messages[:2], tools=tools, add_generation_prompt=True, tokenize=False)
     p_ids = tok(prompt, add_special_tokens=False)["input_ids"]
     a_ids = tok(messages[2]["content"] + tok.eos_token, add_special_tokens=False)["input_ids"]
     if len(p_ids) + len(a_ids) > max_len:
@@ -31,15 +35,31 @@ def collate(batch, pad_id):
 
 
 def load_examples(tokenizer, data_path, max_len):
-    """Đọc train.jsonl thành (input_ids, labels). Bỏ các mẫu dài hơn max_len token."""
-    examples, skipped = [], 0
+    """Đọc train.jsonl thành (input_ids, labels). Bỏ các mẫu dài hơn max_len token.
+    Trả thêm `groups`: khoá câu nói của user cho từng mẫu (cùng câu lặp lại với trạng thái máy khác -> cùng khoá),
+    để tách val theo câu chứ không theo dòng."""
+    examples, groups, skipped = [], [], 0
     for line in open(data_path, encoding="utf-8"):
-        ex = build_example(tokenizer, json.loads(line)["messages"], max_len)
+        if not line.strip():
+            continue
+        row = json.loads(line)
+        messages = row["messages"]
+        ex = build_example(tokenizer, messages, max_len, tools=row.get("tools"))
         if ex is None:
             skipped += 1
         else:
             examples.append(ex)
-    return examples, skipped
+            groups.append(_utterance_key(messages[1]["content"]))
+    return examples, groups, skipped
+
+
+def _utterance_key(user_content):
+    """Câu nói của user (bỏ số, chữ thường) làm khoá nhóm; nếu nội dung không phải JSON thì dùng nguyên văn."""
+    try:
+        text = json.loads(user_content).get("user_prompt", user_content)
+    except (ValueError, AttributeError):
+        text = user_content.split("\n", 1)[-1] if user_content.startswith("State:") else user_content
+    return re.sub(r"\d+", "#", re.sub(r"[^\w\s]", "", str(text).lower())).strip()
 
 
 def count_parameters(model):
@@ -92,16 +112,28 @@ def train_lora(base, data_path, out_dir, *, r=64, alpha=128, dropout=0.05, lr=2e
     trainable, total = count_parameters(model)
     print(f"Tham số học được: {trainable/1e6:.1f}M trên tổng {total/1e6:.0f}M ({100*trainable/total:.1f}%)")
 
-    examples, skipped = load_examples(tokenizer, data_path, max_len)
-    random.shuffle(examples)
+    examples, groups, skipped = load_examples(tokenizer, data_path, max_len)
     val_examples = []
-    if val_ratio > 0 and len(examples) >= 20:
-        n_val = max(1, int(len(examples) * val_ratio))
-        val_examples = examples[:n_val]
-        examples = examples[n_val:]
-        print(f"{len(examples)} mẫu train | {len(val_examples)} mẫu val (bỏ {skipped} mẫu quá dài)")
-    else:
+    if not (val_ratio > 0 and len(examples) >= 20):
+        random.shuffle(examples)          # giữ y hệt thứ tự ngẫu nhiên cũ khi không tách val (kết quả train cũ tái lập được)
         print(f"{len(examples)} mẫu (bỏ {skipped} mẫu quá dài)")
+    else:
+        # Tách theo CÂU NÓI: mọi bản lặp của một câu (khác trạng thái máy / khác số) nằm cùng phía,
+        # để val loss đo trên câu model chưa thấy, không lạc quan.
+        size = Counter(groups)
+        keys = sorted(size)
+        random.shuffle(keys)
+        val_keys, n_val = set(), 0
+        for k in keys:
+            if n_val >= len(examples) * val_ratio:
+                break
+            val_keys.add(k)
+            n_val += size[k]
+        val_examples = [e for e, g in zip(examples, groups) if g in val_keys]
+        examples = [e for e, g in zip(examples, groups) if g not in val_keys]
+        random.shuffle(examples)
+        print(f"{len(examples)} mẫu train | {len(val_examples)} mẫu val, {len(val_keys)} câu không trùng train "
+              f"(bỏ {skipped} mẫu quá dài)")
 
     def eval_val_loss():
         model.eval()
