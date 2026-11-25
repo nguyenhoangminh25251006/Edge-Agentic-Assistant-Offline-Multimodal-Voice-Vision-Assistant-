@@ -1,0 +1,24 @@
+/*
+ * PC hardware-in-the-loop test build (Pico 2 plugged into a PC, nothing else wired).
+ * Applied on top of rpi_pico2_rp2350a_m33.overlay by:  .\build.ps1 pctest
+ *
+ *  - B-03 bridge moves from UART0 to the second USB CDC ACM port, so the PC plays the
+ *    role of the Pi (embedded/pi/hil_test.py, link_test.py). The command-audio channel
+ *    is switched off in this build. (A third CDC ACM port was tried: with the legacy
+ *    Zephyr USB stack on the RP2350 its OUT endpoint never accepted host data.)
+ *  - E-stop and photoelectric inputs are inverted so that unwired pins (pulled up)
+ *    read "E-stop closed" and "beam clear". Shorting GP11 to GND therefore means
+ *    "E-stop pressed" in this build only. NEVER use this build on the rig.
+ */
+
+/ {
+	chosen {
+		eaa,bridge-uart = &cdc_acm_audio;
+		/delete-property/ eaa,audio-uart;
+	};
+
+	zephyr,user {
+		estop-gpios = <&gpio0 11 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+		pe-gpios = <&gpio0 10 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+	};
+};

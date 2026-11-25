@@ -1,0 +1,79 @@
+/*
+ * EAA MCU pin map on the Arduino UNO Q (STM32U585, the real target).
+ * Same node/property names as rpi_pico2_rp2350a_m33.overlay, so the C code is unchanged.
+ * Pins are on the UNO R3-style header so the Pico 2 wiring maps 1:1.
+ *
+ *  Function              Pico 2   UNO Q header   STM32U585
+ *  B-03 link to MPU      GP0/GP1  (internal)     LPUART1 PG7/PG8 -> Linux side (ttyHS1)
+ *  BTS7960 RPWM          GP2      D3             PB0  TIM3_CH3
+ *  BTS7960 LPWM          GP3      D6             PB1  TIM3_CH4
+ *  BTS7960 R_EN+L_EN     GP4      D8             PB4  (10k pull-down to GND)
+ *  encoder A / B         GP6/GP7  A2 / A3        PA6 / PA7
+ *  I2C SDA / SCL         GP8/GP9  SDA / SCL      PB11 / PB10  I2C2 (100 kHz, MLX90614)
+ *  E18-D80NK beam        GP10     D2             PB3
+ *  E-stop aux NC         GP11     D7             PB2
+ *  listening LED         GP15     D9             PB8
+ *  push-to-talk          GP16     D10            PB9
+ *  heartbeat LED         GP25     on-board RGB LED3 green
+ *  console / shell       USB CDC0 D0/D1          USART1 PB7/PB6
+ *  microphone            GP12-14  not mapped yet (SAI pins on JMISC must be checked, CH-103)
+ */
+
+/ {
+	chosen {
+		eaa,bridge-uart = &lpuart1;
+		eaa,sensor-i2c = &i2c2;
+		/* 200 Hz control loop needs a fine tick: use SysTick (160 MHz) instead of
+		 * the board's 32 kHz LPTIM1 (4096 ticks/s -> a 5 ms period becomes 5.13 ms). */
+		/delete-property/ zephyr,system-timer;
+	};
+
+	zephyr,user {
+		pwms = <&pwm3 3 PWM_NSEC(50000) PWM_POLARITY_NORMAL>,
+		       <&pwm3 4 PWM_NSEC(50000) PWM_POLARITY_NORMAL>;
+		pwm-names = "rpwm", "lpwm";
+		motor-en-gpios = <&gpiob 4 GPIO_ACTIVE_HIGH>;
+		enc-a-gpios = <&gpioa 6 GPIO_PULL_UP>;
+		enc-b-gpios = <&gpioa 7 GPIO_PULL_UP>;
+		pe-gpios = <&gpiob 3 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+		estop-gpios = <&gpiob 2 (GPIO_ACTIVE_HIGH | GPIO_PULL_UP)>;
+		listen-led-gpios = <&gpiob 8 GPIO_ACTIVE_HIGH>;
+		ptt-gpios = <&gpiob 9 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+	};
+};
+
+&lptim1 {
+	status = "disabled";
+};
+
+&systick {
+	status = "okay";
+};
+
+&timers3 {
+	status = "okay";
+	st,prescaler = <0>;
+
+	pwm3: pwm {
+		pinctrl-0 = <&tim3_ch3_pb0 &tim3_ch4_pb1>;
+		pinctrl-names = "default";
+		status = "okay";
+	};
+};
+
+&i2c2 {
+	clock-frequency = <I2C_BITRATE_STANDARD>; /* MLX90614 SMBus: 100 kHz max */
+};
+
+&lpuart1 {
+	current-speed = <115200>;
+};
+
+/* Free header pins used above */
+&spi2 {
+	status = "disabled"; /* PB9 = push-to-talk */
+};
+
+&adc1 {
+	status = "disabled"; /* PA6/PA7 = encoder */
+};

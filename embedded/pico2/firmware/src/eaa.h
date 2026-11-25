@@ -78,6 +78,9 @@ uint8_t safety_handle_cmd(const struct b03_cmd *cmd, uint8_t *reason);
 void safety_voice_stop(void);
 void safety_set_voice_active(bool active);
 void safety_set_mic_ok(bool ok);
+/* Only before a deliberate reboot into the bootloader. */
+void safety_watchdog_disable(void);
+bool safety_watchdog_active(void);
 
 /* ---- bridge.c ---- */
 int bridge_init(void);

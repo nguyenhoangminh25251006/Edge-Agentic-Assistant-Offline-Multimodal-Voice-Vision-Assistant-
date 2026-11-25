@@ -460,6 +460,25 @@ static void safety_thread(void *a, void *b, void *c)
 K_THREAD_STACK_DEFINE(safety_stack, 1536);
 static struct k_thread safety_tid;
 
+bool safety_watchdog_active(void)
+{
+#if DT_HAS_ALIAS(watchdog0) && (CONFIG_EAA_HW_WATCHDOG_MS > 0)
+	return wdt_ch >= 0;
+#else
+	return false;
+#endif
+}
+
+void safety_watchdog_disable(void)
+{
+#if DT_HAS_ALIAS(watchdog0) && (CONFIG_EAA_HW_WATCHDOG_MS > 0)
+	if (wdt_ch >= 0) {
+		(void)wdt_disable(wdt);
+		wdt_ch = -1;
+	}
+#endif
+}
+
 int safety_init(void)
 {
 #if DT_HAS_ALIAS(watchdog0) && (CONFIG_EAA_HW_WATCHDOG_MS > 0)

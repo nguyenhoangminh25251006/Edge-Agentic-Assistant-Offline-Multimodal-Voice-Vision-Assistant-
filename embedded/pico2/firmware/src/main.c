@@ -100,15 +100,41 @@ static int cmd_status(const struct shell *sh, size_t argc, char **argv)
 	shell_print(sh, "state %s fault 0x%02x flags 0x%02x setpoint %u mm/s", state_name(s.state),
 		    s.fault_reason, s.flags, s.setpoint_mms);
 	shell_print(sh, "speed %u mm/s pwm %u/1000", control_speed_mms(), control_pwm_pm());
-	shell_print(sh, "estop %s, beam %s, current %u mA (%s), bus %u mV, temp %d.%d C (%s), ss 0x%02x",
+	char temp[24];
+
+	if (x.temp_c10 == B03_TEMP_NOT_INSTALLED) {
+		snprintk(temp, sizeof(temp), "not fitted");
+	} else if (x.temp_c10 == B03_TEMP_FAULT) {
+		snprintk(temp, sizeof(temp), "FAULT");
+	} else {
+		snprintk(temp, sizeof(temp), "%d.%d C", x.temp_c10 / 10, abs(x.temp_c10 % 10));
+	}
+	shell_print(sh, "estop %s, beam %s, current %u mA (%s), bus %u mV, temp %s, ss 0x%02x",
 		    x.estop_open ? "OPEN" : "closed", x.pe_blocked ? "BLOCKED" : "clear",
-		    x.current_ma, x.current_ok ? "ok" : "FAULT", x.bus_mv, x.temp_c10 / 10,
-		    abs(x.temp_c10 % 10), x.temp_ok ? "ok" : "FAULT", x.status);
+		    x.current_ma,
+		    !IS_ENABLED(CONFIG_EAA_INA226) ? "not fitted" : (x.current_ok ? "ok" : "FAULT"),
+		    x.bus_mv, temp, x.status);
 	shell_print(sh, "control loops %u, jitter max %u us, exec max %u us", c.loops,
 		    c.jitter_max_us, c.exec_max_us);
 	shell_print(sh, "link %s rx %u bad_crc %u bad_cobs %u tx %u retx %u pending %u",
 		    b.synced ? "synced" : "no HELLO yet", b.rx_frames, b.rx_bad_crc, b.rx_bad_cobs,
 		    b.tx_frames, b.retx, b.events_pending);
+	shell_print(sh, "uptime %u ms, hw watchdog %s (%d ms), board %s", k_uptime_get_32(),
+		    safety_watchdog_active() ? "ON" : "off", CONFIG_EAA_HW_WATCHDOG_MS, CONFIG_BOARD);
+	return 0;
+}
+
+static int cmd_wdtest(const struct shell *sh, size_t argc, char **argv)
+{
+	ARG_UNUSED(argc);
+	ARG_UNUSED(argv);
+	shell_print(sh, "simulating a firmware hang: interrupts off, spinning. "
+			"The hardware watchdog must reset the chip within %d ms.",
+		    CONFIG_EAA_HW_WATCHDOG_MS);
+	k_sleep(K_MSEC(50));
+	(void)irq_lock();
+	for (;;) {
+	}
 	return 0;
 }
 
@@ -164,6 +190,7 @@ static int cmd_hb(const struct shell *sh, size_t argc, char **argv)
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_EAA_VOICE)
 static int cmd_wake(const struct shell *sh, size_t argc, char **argv)
 {
 	ARG_UNUSED(argc);
@@ -181,16 +208,43 @@ static int cmd_vstop(const struct shell *sh, size_t argc, char **argv)
 	shell_print(sh, "simulated spoken stop");
 	return 0;
 }
+#endif
+
+#if defined(CONFIG_SOC_SERIES_RP2350)
+#include <pico/bootrom.h>
+
+static int cmd_bootsel(const struct shell *sh, size_t argc, char **argv)
+{
+	ARG_UNUSED(argc);
+	ARG_UNUSED(argv);
+	shell_print(sh, "rebooting into the USB bootloader (drive RP2350)...");
+	motor_apply(false, 0);
+	k_sleep(K_MSEC(100));
+	unsigned int key = irq_lock();
+
+	ARG_UNUSED(key);
+	safety_watchdog_disable(); /* else the armed watchdog resets the chip out of BOOTSEL */
+	reset_usb_boot(0, 0);
+	return 0;
+}
+#endif
 
 SHELL_STATIC_SUBCMD_SET_CREATE(eaa_cmds,
+#if defined(CONFIG_SOC_SERIES_RP2350)
+	SHELL_CMD(bootsel, NULL, "Reboot into the UF2 bootloader (re-flash without the button)",
+		  cmd_bootsel),
+#endif
 	SHELL_CMD(status, NULL, "State, sensors, loop jitter, link counters", cmd_status),
 	SHELL_CMD(jreset, NULL, "Reset jitter statistics", cmd_jitter_reset),
+	SHELL_CMD(wdtest, NULL, "Hang the firmware on purpose (watchdog reset test)", cmd_wdtest),
 	SHELL_CMD_ARG(run, NULL, "run [mm/s]  (bench only: needs 'eaa hb' within 300 ms)",
 		      cmd_run, 1, 1),
 	SHELL_CMD(stop, NULL, "Controlled stop", cmd_stop),
 	SHELL_CMD(clear, NULL, "CLEAR_FAULT", cmd_clear),
 	SHELL_CMD(hb, NULL, "Send one local heartbeat", cmd_hb),
+#if IS_ENABLED(CONFIG_EAA_VOICE)
 	SHELL_CMD(wake, NULL, "Simulate the wake word", cmd_wake),
 	SHELL_CMD(vstop, NULL, "Simulate spoken 'stop'", cmd_vstop),
+#endif
 	SHELL_SUBCMD_SET_END);
 SHELL_CMD_REGISTER(eaa, &eaa_cmds, "EAA MCU bench commands", NULL);

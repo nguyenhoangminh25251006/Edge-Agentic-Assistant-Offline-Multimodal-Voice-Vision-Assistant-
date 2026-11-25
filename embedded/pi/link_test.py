@@ -24,7 +24,7 @@ import b03
 
 class Link:
     def __init__(self, port: str, baud: int = 115200, show_telem: bool = True) -> None:
-        self.ser = serial.serial_for_url(port, baudrate=baud, timeout=0.05)  # also socket://host:port for tests
+        self.ser = serial.serial_for_url(port, baudrate=baud, timeout=0.05, write_timeout=1.0)  # also socket://host:port for tests
         self.lock = threading.Lock()
         self.seq = 0
         self.last_rx_seq = 0
@@ -39,6 +39,12 @@ class Link:
         self.telem: dict = {}
         self.running = True
         self.session = random.getrandbits(32)
+        # for automated tests (hil_test.py)
+        self.auto_ack = True
+        self.verbose = True
+        self.acks: dict[int, tuple[int, int, int]] = {}       # cmd_id -> (result, reason, state)
+        self.event_log: list[tuple[float, int, int, int, int]] = []  # (t, msg_type, kind, reason, event_seq), every arrival
+        self.last_hb_tx = 0.0
 
     def tick(self) -> int:
         return int((time.monotonic() - self.t0) * 1000)
@@ -72,7 +78,7 @@ class Link:
                 self.stats["rx"] += 1
                 text = b03.describe(t, flags, p)
                 if t == b03.HELLO_ACK:
-                    if not self.synced:
+                    if not self.synced and self.verbose:
                         print(f"\n<< {text}")
                     self.synced = True
                 elif t == b03.TELEMETRY:
@@ -85,16 +91,22 @@ class Link:
                         print(f"<< {text}")
                 elif t in (b03.MCU_EVENT, b03.VOICE_EVENT):
                     es = struct.unpack_from("<H", p, 2)[0]
-                    self.send(b03.EVENT_ACK, b03.p_event_ack(es))
+                    self.event_log.append((time.monotonic(), t, p[0], p[1], es))
+                    if self.auto_ack:
+                        self.send(b03.EVENT_ACK, b03.p_event_ack(es))
                     if es in self.seen_events:
                         self.stats["dup_events"] += 1  # retransmission we already handled
                     else:
                         self.seen_events.add(es)
                         self.stats["events"] += 1
-                        print(f"\n<< {text}")
+                        if self.verbose:
+                            print(f"\n<< {text}")
                 elif t == b03.CMD_ACK:
                     self.stats["acks"] += 1
-                    print(f"<< {text}")
+                    cid, res, rs, st = struct.unpack_from("<HBBB", p)
+                    self.acks[cid] = (res, rs, st)
+                    if self.verbose:
+                        print(f"<< {text}")
 
     def tx_loop(self) -> None:
         last_hello = 0.0
@@ -105,6 +117,7 @@ class Link:
                     self.send(b03.HELLO, b03.p_hello(self.session))
                     last_hello = now
                 self.send(b03.HEARTBEAT, b03.p_heartbeat(1))
+                self.last_hb_tx = time.monotonic()
             time.sleep(0.1)
 
     def start(self) -> None:

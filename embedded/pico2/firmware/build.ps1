@@ -1,9 +1,11 @@
 # Build the EAA MCU firmware for the Raspberry Pi Pico 2 (Windows PowerShell).
 #   .\build.ps1            -> full build (INA226 + MLX90614 required)
 #   .\build.ps1 bench      -> bench build (no current/temperature sensors fitted yet)
+#   .\build.ps1 pctest     -> PC hardware-in-the-loop build (B-03 bridge on USB, see boards/pc_test.overlay)
 #   .\build.ps1 test       -> host unit tests (protocol + safety state machine)
 # Toolchain: run ..\tools\setup_zephyr.sh once (Git Bash) -> %USERPROFILE%\zephyrproject
-param([ValidateSet("full", "bench", "test")][string]$Variant = "full")
+#   .\build.ps1 unoq       -> Arduino UNO Q MCU (STM32U585) build, compile-only check for now
+param([ValidateSet("full", "bench", "pctest", "unoq", "test")][string]$Variant = "full")
 
 $ErrorActionPreference = "Continue"  # west/cmake write progress to stderr; check $LASTEXITCODE
 $ZP = "$env:USERPROFILE\zephyrproject"
@@ -28,6 +30,18 @@ if ($Variant -eq "test") {
 $bd = "$ZP\b-$Variant"
 $extra = @()
 if ($Variant -eq "bench") { $extra = @("--", "-DCONFIG_EAA_INA226=n", "-DCONFIG_EAA_MLX90614=n") }
+if ($Variant -eq "pctest") {
+    $extra = @("--", "-DCONFIG_EAA_INA226=n", "-DCONFIG_EAA_MLX90614=n",
+               "-DEXTRA_DTC_OVERLAY_FILE=boards/pc_test.overlay")
+}
+if ($Variant -eq "unoq") {
+    # Real target: Arduino UNO Q MCU (STM32U585). Board files in boards/arduino/uno_q (from Zephyr main).
+    & "$ZP\.venv\Scripts\west.exe" build -p auto -b arduino_uno_q $PSScriptRoot -d $bd -- "-DBOARD_ROOT=$PSScriptRoot"
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    Copy-Item "$bd\zephyr\zephyr.bin" "$PSScriptRoot\..\release\eaa_mcu_unoq.bin" -Force
+    Write-Host "UNO Q image: release\eaa_mcu_unoq.bin (flash at 0x08010000, slot0; ELF in $bd\zephyr) - not tested on a board"
+    exit 0
+}
 & "$ZP\.venv\Scripts\west.exe" build -p auto -b rpi_pico2/rp2350a/m33 $PSScriptRoot -d $bd @extra
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 $dst = "$PSScriptRoot\..\release\eaa_mcu_pico2_$Variant.uf2"
