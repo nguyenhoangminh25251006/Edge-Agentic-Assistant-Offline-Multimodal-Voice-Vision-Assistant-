@@ -316,7 +316,7 @@ LED on-board GP25: nháy chậm = OK, nháy nhanh = SAFE_STOP
   .\build.ps1          # full   -> release\eaa_mcu_pico2_full.uf2   (có INA226 + MLX90614)
   .\build.ps1 bench    # bench  -> release\eaa_mcu_pico2_bench.uf2  (chưa có sensor)
   .\build.ps1 pctest   # pctest -> release\eaa_mcu_pico2_pctest.uf2 (test trên PC, KHÔNG dùng trên rig)
-  .\build.ps1 unoq     # UNO Q  -> release\eaa_mcu_unoq.bin/.elf    (STM32U585, chưa chạy thật)
+  .\build.ps1 unoq     # UNO Q  -> release\eaa_mcu_unoq.bin        (STM32U585, chưa chạy thật)
   .\build.ps1 test     # unit test trên PC
   ```
 
