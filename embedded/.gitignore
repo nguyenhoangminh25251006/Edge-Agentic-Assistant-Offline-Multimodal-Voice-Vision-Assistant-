@@ -1,3 +1,6 @@
 __pycache__/
 *.pyc
 captures/
+kws/build/
+kws/artifacts/*.npz
+kws/artifacts/*.keras

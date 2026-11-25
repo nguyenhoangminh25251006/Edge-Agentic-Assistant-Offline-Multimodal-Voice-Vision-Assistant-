@@ -6,7 +6,8 @@
  *               then VOICE_EVENT kind STOP
  *    wake    -> VOICE_ACTIVE flag + listening LED + VOICE_EVENT kind WAKE,
  *               then up to 5 s of command audio on the audio channel for STT
- *  push-to-talk button = wake (test aid while no model is trained)
+ *  wake word "Hey Edgie": kws_pipeline.c (MFCC + VAD + DS-CNN, always on)
+ *  push-to-talk button = wake (test aid)
  */
 #include <zephyr/kernel.h>
 #include <zephyr/drivers/gpio.h>
@@ -58,6 +59,7 @@ static void voice_thread(void *a, void *b, void *c)
 	uint32_t streamed = 0;
 	uint16_t wake_no = 0;
 	bool ptt_prev = false;
+	uint8_t wake_conf = 100; /* push-to-talk / shell = 100 % */
 	int16_t lo = INT16_MAX, hi = INT16_MIN;
 
 	ARG_UNUSED(a);
@@ -128,6 +130,7 @@ static void voice_thread(void *a, void *b, void *c)
 						want_stop = true;
 					} else if (r.label == KWS_WAKE) {
 						want_wake = true;
+						wake_conf = r.conf_pct;
 					}
 				}
 			}
@@ -152,7 +155,8 @@ static void voice_thread(void *a, void *b, void *c)
 			if (led.port) {
 				gpio_pin_set_dt(&led, 1);
 			}
-			bridge_emit_voice(B03_VOICE_WAKE, 100, CONFIG_EAA_KWS_MODEL_VER);
+			bridge_emit_voice(B03_VOICE_WAKE, wake_conf, CONFIG_EAA_KWS_MODEL_VER);
+			wake_conf = 100;
 			audio_out_begin(wake_no, CONFIG_EAA_AUDIO_SAMPLE_RATE);
 			LOG_INF("WAKE -> listening for %d ms", CONFIG_EAA_CMD_WINDOW_MS);
 		}

@@ -196,15 +196,97 @@ config EAA_CMD_WINDOW_MS
 	default 5000
 	depends on EAA_VOICE
 
+config EAA_KWS_TFLM
+	bool "On-device wake word 'Hey Edgie' (TFLite Micro DS-CNN, CMSIS-NN)"
+	default y
+	select TENSORFLOW_LITE_MICRO
+	select TENSORFLOW_LITE_MICRO_CMSIS_NN_KERNELS
+	help
+	  Always-on wake-word pipeline on the MCU (embedded/kws/README.md).
+	  Independent of EAA_VOICE so the model can be benchmarked with
+	  "kws bench" on a board without a microphone (e.g. the UNO Q).
+
+if EAA_KWS_TFLM
+
+choice EAA_KWS_MODEL
+	prompt "Wake-word model used live"
+	default EAA_KWS_MODEL_S
+
+config EAA_KWS_MODEL_S
+	bool "DS-CNN-S (64 channels, 4 blocks)"
+
+config EAA_KWS_MODEL_XS
+	bool "DS-CNN-XS (32 channels, 3 blocks)"
+
+endchoice
+
+config EAA_KWS_STRIDE_HOPS
+	int "Run the model every N hops of 20 ms"
+	default 10
+	range 1 12
+	help
+	  Measured on the Pico 2: DS-CNN-S takes ~65 ms per run, so 10 hops
+	  (200 ms) costs ~33 % of the core while someone speaks (0 % in silence,
+	  the VAD gate stops it), leaving room for the motor loop and the link.
+
+config EAA_KWS_SMOOTH
+	int "Average of the last N model scores"
+	default 2
+	range 1 8
+
+config EAA_KWS_VAD_DB
+	int "VAD: frame energy above the noise floor that counts as speech (dB)"
+	default 9
+
+config EAA_KWS_ARENA_KB
+	int "TFLite Micro tensor arena (KiB)"
+	default 32
+
+config EAA_KWS_MODEL_RAM_KB
+	int "Copy the live model to SRAM (KiB buffer, 0 = run from flash)"
+	default 48
+
+config EAA_KWS_CODE_IN_RAM
+	bool "Run the MFCC, CMSIS-DSP and CMSIS-NN code from SRAM"
+	default n
+	select CODE_DATA_RELOCATION
+	help
+	  Measured on the Pico 2: no gain (DS-CNN-S 62.9 ms either way, MFCC
+	  unchanged) for +75 KB of SRAM, so it stays off. Kept for the record.
+
+config EAA_KWS_CMSIS_DSP
+	bool "CMSIS-DSP real FFT for the MFCC (else portable C FFT)"
+	default y
+	select CMSIS_DSP
+	select CMSIS_DSP_TRANSFORM
+	select CMSIS_DSP_COMPLEXMATH
+
+config EAA_KWS_BENCH
+	bool "Benchmark clips in flash + 'kws bench' / 'kws stream' shell commands"
+	default y
+
+endif
+
+config EAA_RP2350_DSP
+	bool "Enable the Cortex-M33 DSP extension on the RP2350"
+	default y
+	depends on SOC_SERIES_RP2350
+	select ARMV8_M_DSP
+	help
+	  The RP2350's Cortex-M33 has the DSP (SIMD) extension, but Zephyr v4.2
+	  builds it with -mcpu=cortex-m33+nodsp, so CMSIS-NN falls back to plain
+	  C kernels (measured: DS-CNN-S 89.8 ms -> see the report). The STM32U585
+	  SoC selects ARMV8_M_DSP itself.
+
 config EAA_KWS_THRESHOLD_PCT
 	int "Keyword confidence needed to act (%)"
 	default 80
-	depends on EAA_VOICE
+	depends on EAA_VOICE || EAA_KWS_TFLM
 
 config EAA_KWS_EDGE_IMPULSE
 	bool "Use the Edge Impulse C++ model in firmware/ei-model/"
 	default n
-	depends on EAA_VOICE
+	depends on EAA_VOICE && !EAA_KWS_TFLM
 	help
 	  When n, a stub detector is used: the push-to-talk button (or the
 	  shell command "eaa wake") opens the command window, and spoken

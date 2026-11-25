@@ -1,0 +1,58 @@
+{
+ "arch": "s",
+ "stride": 5,
+ "smooth": 3,
+ "mixed_stream_minutes": 69.6,
+ "n_wake": 167,
+ "sweep": [
+  {
+   "thr": 50,
+   "detected": 163,
+   "frr": 0.024,
+   "false_wakes": 42,
+   "fa_per_hour": 36.18
+  },
+  {
+   "thr": 60,
+   "detected": 161,
+   "frr": 0.0359,
+   "false_wakes": 35,
+   "fa_per_hour": 30.15
+  },
+  {
+   "thr": 70,
+   "detected": 156,
+   "frr": 0.0659,
+   "false_wakes": 24,
+   "fa_per_hour": 20.68
+  },
+  {
+   "thr": 80,
+   "detected": 153,
+   "frr": 0.0838,
+   "false_wakes": 19,
+   "fa_per_hour": 16.37
+  },
+  {
+   "thr": 90,
+   "detected": 148,
+   "frr": 0.1138,
+   "false_wakes": 16,
+   "fa_per_hour": 13.78
+  },
+  {
+   "thr": 95,
+   "detected": 145,
+   "frr": 0.1317,
+   "false_wakes": 13,
+   "fa_per_hour": 11.2
+  }
+ ],
+ "quiet_room": {
+  "minutes": 29.2,
+  "model_runs": 8541,
+  "vad_skipped": 8976,
+  "run_fraction": 0.488,
+  "false_wakes": 0
+ }
+}

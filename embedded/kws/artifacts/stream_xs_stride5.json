@@ -1,0 +1,58 @@
+{
+ "arch": "xs",
+ "stride": 5,
+ "smooth": 3,
+ "mixed_stream_minutes": 69.6,
+ "n_wake": 167,
+ "sweep": [
+  {
+   "thr": 50,
+   "detected": 139,
+   "frr": 0.1677,
+   "false_wakes": 45,
+   "fa_per_hour": 38.77
+  },
+  {
+   "thr": 60,
+   "detected": 135,
+   "frr": 0.1916,
+   "false_wakes": 33,
+   "fa_per_hour": 28.43
+  },
+  {
+   "thr": 70,
+   "detected": 130,
+   "frr": 0.2216,
+   "false_wakes": 24,
+   "fa_per_hour": 20.68
+  },
+  {
+   "thr": 80,
+   "detected": 127,
+   "frr": 0.2395,
+   "false_wakes": 15,
+   "fa_per_hour": 12.92
+  },
+  {
+   "thr": 90,
+   "detected": 116,
+   "frr": 0.3054,
+   "false_wakes": 10,
+   "fa_per_hour": 8.61
+  },
+  {
+   "thr": 95,
+   "detected": 113,
+   "frr": 0.3234,
+   "false_wakes": 8,
+   "fa_per_hour": 6.89
+  }
+ ],
+ "quiet_room": {
+  "minutes": 29.2,
+  "model_runs": 8541,
+  "vad_skipped": 8976,
+  "run_fraction": 0.488,
+  "false_wakes": 0
+ }
+}

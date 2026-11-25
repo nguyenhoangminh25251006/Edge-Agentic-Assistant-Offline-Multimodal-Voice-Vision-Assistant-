@@ -19,10 +19,10 @@
 | Watchdog phần cứng | ✅ **đo thật** | firmware cố ý treo → chip reset sau ~0.55 s (500 ms + 50 ms trễ lệnh) |
 | Port sang UNO Q (STM32U585) | ✅ build, ⏳ chưa có board | Flash 78 KB / 2 MB, RAM 32 KB / 768 KB (mục 13) |
 | Sensor INA226, MLX90614, E18-D80NK, E-stop | ✅ code, ⏳ chưa có hàng | |
-| Mic I2S qua PIO + wake word + kênh audio cho STT | ✅ code (KWS là **stub**), ⏳ chưa có model | Edge Impulse cắm vào là chạy (mục 7) |
+| Mic I2S qua PIO + wake word + kênh audio cho STT | ✅ model "Hey Edgie" chạy trên Pico (chưa có mic: test bằng clip trong flash) | `kws/WAKEWORD_REPORT.md` |
 | Công cụ phía Pi: `link_test.py`, `audio_rx.py`, `voice_to_belt.py` | ✅ test | `link_test.py` chạy với `MockMcu` thật của orchestrator: HELLO → RUN → telemetry → quá dòng → EVENT + ACK, 0 frame lỗi |
 
-**Chưa làm / chưa kiểm được:** nối dây UART thật với Pi 3B (link đã test qua USB, cùng code), motor + BTS7960, sensor, mic (bỏ qua theo yêu cầu), train model wake word, encoder (CH-107 còn bị chặn), chạy trên UNO Q thật, nối `transport_profile: pipe` trong orchestrator (CH-200).
+**Chưa làm / chưa kiểm được:** nối dây UART thật với Pi 3B (link đã test qua USB, cùng code), motor + BTS7960, sensor, mic (bỏ qua theo yêu cầu), giọng người thật cho wake word, encoder (CH-107 còn bị chặn), chạy trên UNO Q thật, nối `transport_profile: pipe` trong orchestrator (CH-200).
 
 ---
 
@@ -34,7 +34,7 @@ Mục tiêu không phải "chạy được trên Pico" mà là **mọi thứ là
 |---|---|---|---|
 | CPU MCU | 1× Cortex-M33 160 MHz | 2× Cortex-M33 150 MHz | **Chỉ dùng 1 core.** Không dùng core 1 dù Pico có, để mọi đo đạc jitter/CPU có ý nghĩa cho STM32. |
 | RTOS | Zephyr | Zephyr v4.2.0 | Cùng RTOS, cùng API (GPIO, PWM, I2C, UART, watchdog). |
-| RAM | 786 KB | 520 KB | Firmware dùng 95 KB → vừa cả hai, còn dư cho model wake word. |
+| RAM | 786 KB | 520 KB | Firmware + wake word dùng 236 KB (bench), vừa cả hai. |
 | Code phụ thuộc board | — | **chỉ 2 file**: `boards/rpi_pico2_rp2350a_m33.overlay` và `src/voice/i2s_in_rp2.c` | Mọi chân lấy từ devicetree (`zephyr,user`, `chosen eaa,*`). Port = viết overlay mới + driver mic SAI. |
 | Link MPU↔MCU | UART nội bộ (Arduino Bridge / `/dev/ttyHS1`) | UART0 GP0/GP1 ↔ Pi GPIO14/15, 115200 8N1 | Dùng đúng **Profile B (raw UART + COBS)** đã có trong `orchestrator/bridge/transport.py` và `uart_device` trong config. Sang UNO Q chỉ đổi tên thiết bị. |
 | Protocol | B-03 v1.1 | B-03 v1.1 | Firmware được kiểm byte-by-byte với code Python của team. |
@@ -59,7 +59,7 @@ Mục tiêu không phải "chạy được trên Pico" mà là **mọi thứ là
                     │ control (COOP 1, 200 Hz) ramp, open-loop/PI ──► PWM + EN ───┼─► BTS7960 ─► motor
                     │   ▲ E-stop pin đọc trực tiếp mỗi 5 ms                       │
                     │ sensors (P4, 50 Hz) INA226, MLX90614 (I2C), E18, E-stop     │
-                    │ voice   (P8) mic I2S(PIO)→KWS 250 ms→ STOP/WAKE; audio ─────┼─► USB CDC1 ─► STT
+                    │ voice   (P8) mic I2S(PIO)→MFCC+VAD→KWS 200 ms→ WAKE   ; audio ─────┼─► USB CDC1 ─► STT
  USB CDC0 ◄────────►│ shell/log  `eaa status|run|stop|clear|hb|wake|vstop`        │
                     └──────────────────────────────────────────────────────────────┘
 ```
@@ -75,7 +75,7 @@ Quy tắc sở hữu (để không ai "đi tắt" qua an toàn):
 | safety | 10 ms | preempt 1 | Kiểm invariant, nuôi watchdog phần cứng 500 ms. |
 | bridge | theo sự kiện + 50 ms | preempt 3 | |
 | sensors | 20 ms (MLX 100 ms) | preempt 4 | I2C chậm, không bao giờ chạy trong vòng motor. |
-| voice | 16 ms/khối, KWS mỗi 250 ms | preempt 8 | Thấp nhất trong các thread chức năng. |
+| voice | 20 ms/hop, KWS mỗi 200 ms khi có tiếng nói | preempt 8 | Thấp nhất trong các thread chức năng. |
 | ISR mic (PIO0 IRQ) | 32 000 lần/s, rất ngắn | IRQ prio 1 | Đây là nguồn jitter chính phải đo ở M5/M6. DMA là tối ưu tiếp theo. |
 
 ---
@@ -142,27 +142,22 @@ CLEAR_FAULT chỉ thành công khi **nguyên nhân đã hết** (E-stop đóng, 
 ## 7. Wake word và giọng nói
 
 ### 7.1 Luồng xử lý
+Chi tiết, số đo và benchmark: **[../kws/WAKEWORD_REPORT.md](../kws/WAKEWORD_REPORT.md)**.
 ```
-INMP441 ──I2S(PIO, 1.024 MHz BCK)──► ISR ──► ring 1 s ──► voice thread
-   ├─► KWS mỗi 250 ms (cửa sổ 1 s, 16 kHz)
-   │     "stop" ≥ 80% → MCU tự dừng băng (không cần wake word, không cần Pi) → VOICE_EVENT STOP
-   │     wake ≥ 80%   → cờ VOICE_ACTIVE + LED GP15 + VOICE_EVENT WAKE → mở cửa sổ 5 s
+INMP441 ──I2S(PIO, 1.024 MHz BCK)──► ISR ──► ring ──► voice thread, mỗi 20 ms:
+   ├─► MFCC 49×10 + VAD năng lượng (0.5 ms, luôn chạy = 2.7 % CPU)
+   ├─► chỉ khi có tiếng nói: DS-CNN-S int8 "Hey Edgie" mỗi 200 ms (65 ms/lần ≈ 35 % CPU)
+   │     trung bình 2 điểm ≥ 80 % → cờ VOICE_ACTIVE + LED GP15 + VOICE_EVENT WAKE → cửa sổ 5 s
    └─► trong cửa sổ: gửi PCM 16-bit qua USB CDC1 ─► Pi: audio_rx → Vosk STT → SLM
-Nút push-to-talk GP16 = wake (để test khi chưa có model)
+Nút push-to-talk GP16 / `eaa wake` = wake (test). "stop" nói ra: đường code còn (`eaa vstop`),
+model hiện chỉ có wake (silence / unknown / wake).
 ```
 
 ### 7.2 Mic I2S bằng PIO (chỗ duy nhất riêng của RP2350)
 Zephyr chưa có driver I2S cho RP2350 nên tao viết chương trình PIO 8 lệnh (master, 64 BCK/frame, lấy mẫu sườn lên). Khi FIFO đầy, PIO dừng cả BCK nên **không bao giờ lệch kênh trái/phải** — chỉ mất mẫu (đếm `overruns`). Mẫu 24-bit → 16-bit bằng dịch phải `CONFIG_EAA_MIC_GAIN_SHIFT` (mặc định 7; nhỏ hơn = to hơn). Sang STM32: thay file này bằng driver SAI/I2S của Zephyr qua cùng `audio_in.h`.
 
 ### 7.3 Model wake word — trạng thái thật
-Hiện firmware dùng **`kws_stub.c`: không nhận diện từ khoá nào**. Chạy được: mic, kênh audio, PTT, cờ, event, đường "stop" (giả lập bằng `eaa vstop`). Để có wake word thật:
-1. **Dữ liệu:** "stop" có sẵn trong **Google Speech Commands** (team đã EDA ở nhánh `stt-tts`, `eda/eda_google_speech_commands.ipynb`). Cụm wake word nên **3 âm tiết** (CH-102: ít báo nhầm hơn); thu ~50–100 mẫu/người, nhiều người, kèm tiếng ồn băng chuyền thật (lớp `noise`) và câu nói khác (lớp `unknown`).
-2. **Edge Impulse Studio:** 16 kHz, cửa sổ 1000 ms, MFCC, model nhỏ (1D-conv). Nhãn: `wake`, `stop`, `noise`, `unknown` (tên đổi được trong Kconfig).
-3. **Export "C++ library"** → giải nén vào `embedded/pico2/firmware/ei-model/` (có `edge-impulse-sdk/`, `model-parameters/`, `tflite-model/`).
-4. Build với `-DCONFIG_EAA_KWS_EDGE_IMPULSE=y`. Chế độ continuous 4 slice/cửa sổ → 1 quyết định/250 ms.
-5. **Đo bắt buộc (CH-103/CH-243):** RAM/flash của model, thời gian suy luận/slice (`kws_result.time_us`), **jitter vòng motor khi KWS chạy** (`eaa jreset` rồi `eaa status`), số lần báo nhầm/giờ ở 60–90 dBA.
-
-Phần tích hợp Edge Impulse (`kws_ei.cpp` + CMake) **chưa build thử được** vì chưa có model export — cần build lại khi có.
+Đã có model thật: **DS-CNN-S int8 "Hey Edgie"** (TFLite Micro + CMSIS-NN), train bằng giọng TTS (≈ 1.000 người nói tổng hợp) + Google Speech Commands. Trên Pico 2: output trùng từng bit với PC (14/14 clip), HIL 30/30 khi model chạy liên tục, jitter 231 µs. Giới hạn: **chưa có giọng người thật** → phải thu giọng team rồi fine-tune (WAKEWORD_REPORT.md §7). Đường Edge Impulse (`kws_ei.cpp`) vẫn giữ làm phương án thay thế, không còn là mặc định.
 
 ---
 
@@ -408,7 +403,7 @@ Lỗi chỉ lộ ra khi chạy trên phần cứng, đã sửa: (1) `eaa bootsel
 | `cross_check.py`: C ↔ `codec.py`/`transport.py` của orchestrator, hai chiều | ✅ 29/29 trùng byte |
 | `safety_host_test` (13 kịch bản) | ✅ |
 | `link_test.py` ↔ `MockMcu` thật của orchestrator qua TCP | ✅ |
-| Build với model Edge Impulse | ❌ chưa có model |
+| Wake word "Hey Edgie" (TFLM) | ✅ bit-exact 14/14, HIL 30/30 khi model chạy liên tục (WAKEWORD_REPORT.md) |
 
 ---
 
