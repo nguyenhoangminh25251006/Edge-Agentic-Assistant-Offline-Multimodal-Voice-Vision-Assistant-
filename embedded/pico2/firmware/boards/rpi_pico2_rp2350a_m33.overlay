@@ -1,0 +1,104 @@
+/*
+ * EAA MCU pin map on the Raspberry Pi Pico 2 (stand-in for the UNO Q STM32U585).
+ * Porting: write the same nodes/properties for the UNO Q MCU board; the C code
+ * only uses the names below (zephyr,user properties and the eaa,* chosen nodes).
+ *
+ *  GP0  UART0 TX  -> Pi 3B GPIO15 RXD (pin 10)      B-03 control link, 115200 8N1
+ *  GP1  UART0 RX  <- Pi 3B GPIO14 TXD (pin 8)
+ *  GP2  PWM1A     -> BTS7960 RPWM (20 kHz)
+ *  GP3  PWM1B     -> BTS7960 LPWM (held at 0)
+ *  GP4  output    -> BTS7960 R_EN + L_EN (external 10k pull-down to GND)
+ *  GP6  input     <- encoder A  (only with CONFIG_EAA_ENCODER=y)
+ *  GP7  input     <- encoder B
+ *  GP8  I2C0 SDA  <-> INA226 + MLX90614 (4.7k pull-ups to 3V3)
+ *  GP9  I2C0 SCL
+ *  GP10 input     <- E18-D80NK output (pull-up to 3V3, low = object/beam blocked)
+ *  GP11 input     <- E-stop auxiliary NC contact to GND (high = contact open = E-stop)
+ *  GP12 PIO       -> I2S BCK  (mic SCK)
+ *  GP13 PIO       -> I2S WS   (mic WS/LRCL)
+ *  GP14 PIO       <- I2S SD   (mic SD)
+ *  GP15 output    -> "listening" LED
+ *  GP16 input     <- push-to-talk button to GND (test aid)
+ *  GP25 on-board LED: heartbeat (slow = OK, fast = SAFE_STOP)
+ *  USB  CDC ACM 0 = console/shell/log, CDC ACM 1 = command audio to the Pi
+ */
+
+/ {
+	chosen {
+		zephyr,console = &cdc_acm_console;
+		zephyr,shell-uart = &cdc_acm_console;
+		eaa,bridge-uart = &uart0;
+		eaa,audio-uart = &cdc_acm_audio;
+		eaa,sensor-i2c = &i2c0;
+	};
+
+	zephyr,user {
+		pwms = <&pwm 2 PWM_NSEC(50000) PWM_POLARITY_NORMAL>,
+		       <&pwm 3 PWM_NSEC(50000) PWM_POLARITY_NORMAL>;
+		pwm-names = "rpwm", "lpwm";
+		motor-en-gpios = <&gpio0 4 GPIO_ACTIVE_HIGH>;
+		enc-a-gpios = <&gpio0 6 GPIO_PULL_UP>;
+		enc-b-gpios = <&gpio0 7 GPIO_PULL_UP>;
+		pe-gpios = <&gpio0 10 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+		estop-gpios = <&gpio0 11 (GPIO_ACTIVE_HIGH | GPIO_PULL_UP)>;
+		listen-led-gpios = <&gpio0 15 GPIO_ACTIVE_HIGH>;
+		ptt-gpios = <&gpio0 16 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+	};
+};
+
+&pinctrl {
+	i2c0_default: i2c0_default {
+		group1 {
+			pinmux = <I2C0_SDA_P8>, <I2C0_SCL_P9>;
+			input-enable;
+			input-schmitt-enable;
+		};
+	};
+
+	pwm_motor_default: pwm_motor_default {
+		group1 {
+			pinmux = <PWM_1A_P2>, <PWM_1B_P3>;
+		};
+	};
+};
+
+&uart0 {
+	current-speed = <115200>;
+	status = "okay";
+};
+
+&i2c0 {
+	/* MLX90614 SMBus: 100 kHz max */
+	clock-frequency = <I2C_BITRATE_STANDARD>;
+	status = "okay";
+};
+
+/* GP6/GP7 are used by the encoder */
+&i2c1 {
+	status = "disabled";
+};
+
+&pwm {
+	status = "okay";
+	pinctrl-0 = <&pwm_motor_default>;
+	pinctrl-names = "default";
+	divider-int-1 = <1>;
+};
+
+&pio0 {
+	status = "okay";
+};
+
+&wdt0 {
+	status = "okay";
+};
+
+&zephyr_udc0 {
+	cdc_acm_console: cdc_acm_console {
+		compatible = "zephyr,cdc-acm-uart";
+	};
+
+	cdc_acm_audio: cdc_acm_audio {
+		compatible = "zephyr,cdc-acm-uart";
+	};
+};

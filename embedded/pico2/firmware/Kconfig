@@ -1,0 +1,231 @@
+# EAA MCU firmware options. Defaults follow orchestrator:src/control_pipeline/config_example.yaml
+# and the B-03 v1.1 timers. Board-independent: the same values are used on the STM32U585 later.
+
+mainmenu "EAA MCU firmware (B-03 v1.1)"
+
+source "Kconfig.zephyr"
+
+menu "EAA firmware"
+
+config EAA_FW_VERSION
+	hex "Firmware version reported in HELLO_ACK"
+	default 0x0100
+
+menu "Link and safety timers"
+
+config EAA_HB_TIMEOUT_MS
+	int "MPU heartbeat watchdog (ms)"
+	default 300
+	help
+	  No HEARTBEAT/HELLO for this long: HB_VALID is cleared and a running
+	  belt goes to SAFE_STOP with event HEARTBEAT_TIMEOUT (same as mock_mcu.py).
+
+config EAA_TELEMETRY_PERIOD_MS
+	int "TELEMETRY period (ms)"
+	default 50
+
+config EAA_EVENT_RETX_MS
+	int "Event retransmit interval until EVENT_ACK (ms)"
+	default 100
+
+config EAA_EVENT_RETX_MAX
+	int "Maximum retransmissions per event"
+	default 20
+
+config EAA_HW_WATCHDOG_MS
+	int "Hardware watchdog timeout (ms), 0 = disabled"
+	default 500
+
+endmenu
+
+menu "Motor and limits"
+
+config EAA_CONTROL_PERIOD_US
+	int "Control loop period (us)"
+	default 5000
+	help
+	  5000 us = 200 Hz (NFR-01: jitter must stay at 1 ms or less).
+
+config EAA_PWM_PERIOD_NS
+	int "Motor PWM period (ns)"
+	default 50000
+	help
+	  50000 ns = 20 kHz, above the audible range, within BTS7960 limits.
+
+config EAA_MIN_SPEED_MMS
+	int "Minimum accepted setpoint (mm/s)"
+	default 50
+
+config EAA_MAX_SPEED_MMS
+	int "Maximum accepted setpoint (mm/s)"
+	default 500
+
+config EAA_RAMP_MMS_PER_S
+	int "Setpoint ramp (mm/s per second)"
+	default 250
+
+config EAA_OPENLOOP_PWM_OFFSET_PM
+	int "Open-loop feed-forward: PWM offset (per mille)"
+	default 100
+
+config EAA_OPENLOOP_PWM_GAIN_X100
+	int "Open-loop feed-forward: PWM per mille per mm/s, x100"
+	default 180
+	help
+	  pwm_pm = offset + gain/100 * setpoint_mms. Calibrate on the belt
+	  (measure mm/s at several duty values) until the encoder is fitted.
+
+config EAA_MAX_PWM_PM
+	int "PWM ceiling (per mille)"
+	default 950
+
+config EAA_MAX_CURRENT_MA
+	int "Overcurrent trip (mA), invariant I-3"
+	default 2500
+
+config EAA_OVERCURRENT_FILTER_MS
+	int "Overcurrent must last this long before a trip (ms)"
+	default 60
+	help
+	  Ignores the motor start-up current spike.
+
+config EAA_MAX_TEMP_C10
+	int "Overtemperature trip (0.1 degC)"
+	default 800
+
+config EAA_JAM_TIMEOUT_MS
+	int "Photoelectric sensor blocked this long while running = jam (ms)"
+	default 3000
+
+endmenu
+
+menu "Encoder"
+
+config EAA_ENCODER
+	bool "Quadrature encoder fitted (closed-loop speed)"
+	default n
+	help
+	  CH-107: the encoder is not fitted yet. When n, speed is open-loop and
+	  the reported speed_mms is the ramped setpoint (an estimate).
+
+config EAA_ENC_COUNTS_PER_REV
+	int "Encoder counts per roller revolution (x4 decoding)"
+	default 2400
+	depends on EAA_ENCODER
+
+config EAA_ROLLER_CIRC_UM
+	int "Drive roller circumference (um)"
+	default 100000
+	depends on EAA_ENCODER
+
+config EAA_SPEED_KP_X1000
+	int "Speed PI: Kp (per mille PWM per mm/s, x1000)"
+	default 800
+	depends on EAA_ENCODER
+
+config EAA_SPEED_KI_X1000
+	int "Speed PI: Ki (per mille PWM per mm/s per s, x1000)"
+	default 2000
+	depends on EAA_ENCODER
+
+endmenu
+
+menu "Sensors"
+
+config EAA_INA226
+	bool "INA226 current sensor on the sensor I2C bus"
+	default y
+
+config EAA_INA226_ADDR
+	hex "INA226 I2C address"
+	default 0x40
+	depends on EAA_INA226
+
+config EAA_INA226_SHUNT_MOHM
+	int "INA226 shunt resistor (milliohm)"
+	default 10
+	depends on EAA_INA226
+
+config EAA_MLX90614
+	bool "MLX90614 IR temperature sensor on the sensor I2C bus"
+	default y
+
+config EAA_MLX90614_ADDR
+	hex "MLX90614 I2C address"
+	default 0x5A
+	depends on EAA_MLX90614
+
+config EAA_REQUIRE_SENSORS
+	bool "Block RUN when a fitted sensor is missing or failing"
+	default y
+	help
+	  Set to n only on the bench before the sensors arrive. Never on the rig.
+
+endmenu
+
+menu "Voice front end (CH-103)"
+
+config EAA_VOICE
+	bool "Microphone, keyword spotter and command audio channel"
+	default y
+	select RING_BUFFER
+
+config EAA_AUDIO_SAMPLE_RATE
+	int "Microphone sample rate (Hz)"
+	default 16000
+	depends on EAA_VOICE
+
+config EAA_I2S_PIN_BCK
+	int "I2S bit clock GPIO (word select is the next GPIO)"
+	default 12
+	depends on EAA_VOICE
+
+config EAA_I2S_PIN_SD
+	int "I2S data-in GPIO"
+	default 14
+	depends on EAA_VOICE
+
+config EAA_MIC_GAIN_SHIFT
+	int "24-bit to 16-bit conversion right shift (smaller = louder)"
+	default 7
+	range 0 8
+	depends on EAA_VOICE
+
+config EAA_CMD_WINDOW_MS
+	int "Command audio window after the wake word (ms)"
+	default 5000
+	depends on EAA_VOICE
+
+config EAA_KWS_THRESHOLD_PCT
+	int "Keyword confidence needed to act (%)"
+	default 80
+	depends on EAA_VOICE
+
+config EAA_KWS_EDGE_IMPULSE
+	bool "Use the Edge Impulse C++ model in firmware/ei-model/"
+	default n
+	depends on EAA_VOICE
+	help
+	  When n, a stub detector is used: the push-to-talk button (or the
+	  shell command "eaa wake") opens the command window, and spoken
+	  "stop" is not detected. Export the trained model as a C++ library
+	  into firmware/ei-model/ and set this to y.
+
+config EAA_KWS_LABEL_WAKE
+	string "Edge Impulse label of the wake phrase"
+	default "wake"
+	depends on EAA_KWS_EDGE_IMPULSE
+
+config EAA_KWS_LABEL_STOP
+	string "Edge Impulse label of the stop word"
+	default "stop"
+	depends on EAA_KWS_EDGE_IMPULSE
+
+config EAA_KWS_MODEL_VER
+	hex "Model version reported in VOICE_EVENT"
+	default 0x0001
+	depends on EAA_VOICE
+
+endmenu
+
+endmenu
