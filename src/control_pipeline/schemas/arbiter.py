@@ -186,6 +186,9 @@ class ArbiterDecision(BaseModel):
                               arbiter recommends sending to the MCU.
         proposed_setpoint_mms: Speed setpoint in mm/s, or ``None`` when not
                               applicable (e.g. for STOP/HALT).
+        outcome:              Status outcome string ("PERMIT", "NEED_CONFIRMATION", "BLOCK", etc.).
+        decision_id:          Optional decision correlation identifier.
+        confirm_ttl_ms:       Optional confirmation time-to-live in milliseconds.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -194,4 +197,7 @@ class ArbiterDecision(BaseModel):
     reason_code: int
     reason_name: str
     proposed_action: Action
-    proposed_setpoint_mms: int | None
+    proposed_setpoint_mms: int | None = None
+    outcome: str = "PERMIT"
+    decision_id: str | None = None
+    confirm_ttl_ms: int | None = None

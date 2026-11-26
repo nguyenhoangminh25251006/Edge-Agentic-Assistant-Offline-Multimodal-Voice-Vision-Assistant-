@@ -12,6 +12,8 @@ dependencies = [
     "pydantic>=2.10,<3",
     "pyzmq>=26,<28",
     "aiosqlite>=0.20,<1",
+    "httpx>=0.27,<1",
+    "pyyaml>=6.0,<7",
 ]
 
 [project.optional-dependencies]
@@ -19,6 +21,7 @@ dev = [
     "pytest>=8.3",
     "pytest-asyncio>=0.24",
     "ruff>=0.7",
+    "hypothesis>=6.100",
 ]
 
 [project.scripts]
@@ -46,8 +49,8 @@ packages = [
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 asyncio_default_test_loop_scope = "function"
-testpaths = ["src/event_pipeline/tests/unit_tests", "src/control_pipeline/tests"]
-pythonpath = ["src", "src/event_pipeline", "src/control_pipeline"]
+testpaths = ["src/event_pipeline/tests/unit_tests", "src/control_pipeline/tests", "src/slm_pipeline/tests"]
+pythonpath = ["src", "src/event_pipeline", "src/control_pipeline", "src/slm_pipeline"]
 addopts = "-ra"
 
 [tool.ruff]

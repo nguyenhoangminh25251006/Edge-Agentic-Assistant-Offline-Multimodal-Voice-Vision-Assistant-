@@ -1,0 +1,45 @@
+slm:
+  enabled: false
+  max_total_ms: 6000
+  ack_after_ms: 1200
+  rate_limit_per_min: 12
+  unavailable_speak_cooldown_s: 60
+  decode_mode: label_logprob
+  llama:
+    base_url: "http://localhost:8080"
+    connect_timeout_ms: 500
+    request_timeout_ms: 5000
+    n_probs: 10
+    cache_prompt: true
+    seed: 0
+  thresholds:
+    min_label_mass: 0.50
+    none_clarify_p2: 0.30
+    clarify_p2: 0.15
+    deenergize: {min_p: 0.50, min_margin: 0.20}
+    energize:   {min_p: 0.80, min_margin: 0.50}
+    info:       {min_p: 0.50, min_margin: 0.20}
+  speed:
+    min_mms: null
+    max_mms: null
+    rated_mms: null
+    require_unit: true
+  tee:
+    request_ttl_ms: 3000
+    follow_ms: 15000
+  breaker:
+    failure_threshold: 3
+    open_s_initial: 5
+    open_s_max: 60
+    canary_interval_s: 30
+    canary_timeout_ms: 3000
+    degraded_latency_ms: 4000
+  candidates:
+    enabled: false
+    ttl_days: 14
+    min_confirmations: 3
+  explain:
+    enabled: false
+    deadline_ms: 8000
+    max_tokens: 96
+    snippet_chars: 200

@@ -24,7 +24,9 @@ import time
 from typing import Any, Callable
 
 from control_pipeline.schemas.fsm import (
+    Action,
     FsmEvent,
+    FsmSnapshot,
     FsmStateChanged,
     FsmTrigger,
     SystemState,
@@ -111,6 +113,7 @@ class FSMEngine:
         self._last_start_at: float | None = None
         self._last_transition_at: float | None = None
         self._transition_count: int = 0
+        self._last_reason: str | None = None
 
     def _get_lock(self) -> asyncio.Lock:
         if self._lock_obj is None:
@@ -118,7 +121,7 @@ class FSMEngine:
         return self._lock_obj
 
     # ------------------------------------------------------------------
-    # Public read-only property
+    # Public read-only property & Snapshot methods
     # ------------------------------------------------------------------
 
     def add_observer(self, observer: FsmObserver) -> None:
@@ -130,6 +133,46 @@ class FSMEngine:
     def state(self) -> SystemState:
         """The current ``SystemState`` (snapshot — not locked)."""
         return self._current_state
+
+    def get_snapshot(self) -> FsmSnapshot:
+        """FS-SLM-1: Export point-in-time FSM snapshot."""
+        state = self._current_state
+        permitted: set[Action] = set()
+        if state == SystemState.IDLE:
+            permitted.add(Action.START)
+        elif state == SystemState.RUNNING:
+            permitted.update({Action.STOP, Action.PAUSE, Action.SET_SPEED})
+        elif state == SystemState.PAUSED:
+            permitted.update({Action.RESUME, Action.STOP})
+        elif state == SystemState.JAMMED:
+            permitted.add(Action.RECOVER)
+        elif state == SystemState.RECOVERING:
+            permitted.add(Action.STOP)
+
+        return FsmSnapshot(
+            state=state.value.upper(),
+            fsm_version=self._transition_count + 1,
+            permitted=frozenset(permitted),
+            last_reason=self._last_reason,
+        )
+
+    def snapshot(self) -> FsmSnapshot:
+        """Alias for get_snapshot()."""
+        return self.get_snapshot()
+
+    def is_legal_transition(self, from_state: SystemState | str, to_state: SystemState | str) -> bool:
+        """FS-SLM-2: Validate whether transition from_state -> to_state is structurally legal."""
+        f_state = SystemState(from_state.lower()) if isinstance(from_state, str) else from_state
+        t_state = SystemState(to_state.lower()) if isinstance(to_state, str) else to_state
+
+        for (src, _trig), dst in TRANSITION_TABLE.items():
+            if src == f_state and dst == t_state:
+                return True
+
+        if t_state == SystemState.SAFETY_FAULT and len(ALWAYS_PERMITTED_TRIGGERS) > 0:
+            return True
+
+        return False
 
     # ------------------------------------------------------------------
     # Core processing
@@ -213,6 +256,13 @@ class FSMEngine:
 
             if trigger is FsmTrigger.START_CMD:
                 self._last_start_at = transition_time
+
+            if event.payload.get("reason_code"):
+                self._last_reason = str(event.payload["reason_code"])
+            elif event.payload.get("reason"):
+                self._last_reason = str(event.payload["reason"])
+            elif to_state in (SystemState.JAMMED, SystemState.SAFETY_FAULT):
+                self._last_reason = trigger.value
 
             change = FsmStateChanged(
                 previous=previous,

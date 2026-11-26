@@ -1,0 +1,11 @@
+labels:
+  - {label: start,   class: ENERGIZE,   action: START}
+  - {label: resume,  class: ENERGIZE,   action: RESUME}
+  - {label: pause,   class: DEENERGIZE, action: PAUSE}
+  - {label: stop,    class: DEENERGIZE, action: STOP}
+  - {label: speed,   class: PARAM,      action: SET_SPEED, needs_slot: speed}
+  - {label: recover, class: RECOVERY,   action: RECOVER}
+  - {label: status,  class: INFO}
+  - {label: why,     class: INFO}
+  - {label: help,    class: INFO}
+  - {label: none,    class: META}

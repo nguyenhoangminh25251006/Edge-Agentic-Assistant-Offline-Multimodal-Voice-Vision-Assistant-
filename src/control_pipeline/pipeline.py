@@ -16,7 +16,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from typing import Any
+from typing import Any, AsyncIterator
 
 from control_pipeline.bridge.mock_mcu import MockMcu
 from control_pipeline.bridge.transport import ByteTransport, MockMcuTransport
@@ -30,10 +30,43 @@ from control_pipeline.schemas.bridge import BridgeHealth, TelemetryFrame
 from control_pipeline.schemas.fsm import (
     Action,
     FsmEvent,
+    FsmSnapshot,
     FsmStateChanged,
     FsmTrigger,
     SystemState,
 )
+from slm_pipeline.contracts import ActionRequest, DecisionEvent
+
+
+class InMemoryDecisionBus:
+    """In-memory pub-sub bus for DecisionEvent streaming."""
+
+    def __init__(self) -> None:
+        self._subscribers: dict[str, list[asyncio.Queue[DecisionEvent]]] = {}
+        self._lock = asyncio.Lock()
+
+    async def publish(self, event: DecisionEvent) -> None:
+        req_id = event.request_id
+        queues = list(self._subscribers.get(req_id, []))
+        for q in queues:
+            await q.put(event)
+
+    async def subscribe(self, request_id: str) -> AsyncIterator[DecisionEvent]:
+        q: asyncio.Queue[DecisionEvent] = asyncio.Queue()
+        if request_id not in self._subscribers:
+            self._subscribers[request_id] = []
+        self._subscribers[request_id].append(q)
+        try:
+            while True:
+                ev = await q.get()
+                yield ev
+                if ev.verdict in ("ACCEPT", "REJECT", "EXPIRED", "CONFIRMED", "CANCELLED"):
+                    break
+        finally:
+            if request_id in self._subscribers and q in self._subscribers[request_id]:
+                self._subscribers[request_id].remove(q)
+                if not self._subscribers[request_id]:
+                    del self._subscribers[request_id]
 
 
 class FeedableSensorSource:
@@ -125,6 +158,7 @@ class OrchestratorPipeline(FsmObserver):
             logger=self._logger.getChild("bridge"),
         )
 
+        self._decision_bus = InMemoryDecisionBus()
         self._last_arbiter_decision: ArbiterDecision | None = None
         self._running = False
 
@@ -139,6 +173,18 @@ class OrchestratorPipeline(FsmObserver):
     @property
     def fsm(self) -> FSMEngine:
         return self._fsm
+
+    @property
+    def decision_bus(self) -> InMemoryDecisionBus:
+        return self._decision_bus
+
+    @property
+    def arbiter(self) -> SafetyInvariantArbiter:
+        return self._arbiter
+
+    def snapshot(self) -> FsmSnapshot:
+        """FS-SLM-1: Export snapshot directly through orchestrator pipeline."""
+        return self._fsm.get_snapshot()
 
     @property
     def bridge(self) -> McuBridgeWorker:
@@ -260,6 +306,123 @@ class OrchestratorPipeline(FsmObserver):
         """Manually override or supply sensor readings."""
         await self._sensor_source.feed(reading)
 
+    async def submit_action_request(self, req: ActionRequest) -> None:
+        """Submit an ActionRequest fulfilling the FsmPort protocol."""
+        if req.action == Action.STOP:
+            res = await self.submit_event(FsmTrigger.STOP_CMD, origin=req.origin, payload=req.meta)
+            decision = self._last_arbiter_decision
+            verdict = "ACCEPT" if res.get("accepted") else "REJECT"
+            reason = decision.reason_name if decision else None
+            await self._decision_bus.publish(
+                DecisionEvent(
+                    request_id=req.request_id,
+                    verdict=verdict,
+                    reason_code=reason,
+                    mcu_result="ACCEPTED" if verdict == "ACCEPT" else "REJECTED",
+                )
+            )
+        elif req.action == Action.PAUSE:
+            res = await self.submit_event(FsmTrigger.PAUSE_CMD, origin=req.origin, payload=req.meta)
+            decision = self._last_arbiter_decision
+            verdict = "ACCEPT" if res.get("accepted") else "REJECT"
+            reason = decision.reason_name if decision else None
+            await self._decision_bus.publish(
+                DecisionEvent(
+                    request_id=req.request_id,
+                    verdict=verdict,
+                    reason_code=reason,
+                    mcu_result="ACCEPTED" if verdict == "ACCEPT" else "REJECTED",
+                )
+            )
+        elif req.action in (Action.START, Action.RESUME, Action.SET_SPEED, Action.RECOVER):
+            payload = {
+                "request_id": req.request_id,
+                "confirm_ttl_ms": req.expires_in_ms,
+                "setpoint_mms": req.params.get("setpoint_mms"),
+                **req.meta,
+            }
+            decision = await self._arbiter.evaluate(
+                req.action,
+                req.params.get("setpoint_mms"),
+                origin=req.origin,
+                payload=payload,
+            )
+            self._last_arbiter_decision = decision
+            if decision.outcome == "NEED_CONFIRMATION":
+                await self._decision_bus.publish(
+                    DecisionEvent(
+                        request_id=req.request_id,
+                        verdict="NEED_CONFIRMATION",
+                        reason_code=decision.reason_name,
+                    )
+                )
+            elif decision.permitted:
+                await self._decision_bus.publish(
+                    DecisionEvent(request_id=req.request_id, verdict="ACCEPT", mcu_result="ACCEPTED")
+                )
+            else:
+                await self._decision_bus.publish(
+                    DecisionEvent(
+                        request_id=req.request_id,
+                        verdict="REJECT",
+                        reason_code=decision.reason_name,
+                    )
+                )
+
+    async def submit(self, req: ActionRequest) -> None:
+        """Alias for submit_action_request fulfilling FsmPort protocol."""
+        await self.submit_action_request(req)
+
+    async def confirm_action(self, request_id: str, origin: str = "voice") -> dict[str, Any]:
+        """Confirm a pending action through Arbiter re-evaluation and execute if permitted."""
+        decision = await self._arbiter.confirm_pending(request_id, origin=origin)
+        self._last_arbiter_decision = decision
+
+        if decision.permitted:
+            act = decision.proposed_action
+            s = decision.proposed_setpoint_mms
+            if act == Action.START:
+                await self._fsm.process(
+                    FsmEvent(
+                        trigger=FsmTrigger.START_CMD,
+                        origin=origin,
+                        payload={"setpoint_mms": s or 100},
+                        timestamp=time.time(),
+                    )
+                )
+            elif act == Action.RESUME:
+                await self._fsm.process(
+                    FsmEvent(
+                        trigger=FsmTrigger.RESUME_CMD,
+                        origin=origin,
+                        payload={"setpoint_mms": s or 100},
+                        timestamp=time.time(),
+                    )
+                )
+            elif act == Action.SET_SPEED:
+                if self._fsm.state == SystemState.RUNNING and s is not None:
+                    await self._bridge.send_action(Action.SET_SPEED, s)
+            elif act == Action.RECOVER:
+                await self._fsm.process(
+                    FsmEvent(
+                        trigger=FsmTrigger.VERIFY_CLEARANCE,
+                        origin=origin,
+                        payload={},
+                        timestamp=time.time(),
+                    )
+                )
+
+            await self._decision_bus.publish(
+                DecisionEvent(request_id=request_id, verdict="CONFIRMED", mcu_result="ACCEPTED")
+            )
+            return {"confirmed": True, "action": act.value, "decision": decision.model_dump()}
+        else:
+            verdict = "EXPIRED" if decision.reason_name == "ERR_EXPIRED" else "REJECT"
+            await self._decision_bus.publish(
+                DecisionEvent(request_id=request_id, verdict=verdict, reason_code=decision.reason_name)
+            )
+            return {"confirmed": False, "reason": decision.reason_name, "decision": decision.model_dump()}
+
     # ------------------------------------------------------------------
     # FsmObserver Callback & Action Dispatch
     # ------------------------------------------------------------------
@@ -267,6 +430,15 @@ class OrchestratorPipeline(FsmObserver):
     async def on_state_changed(self, event: FsmStateChanged) -> None:
         """Called automatically by FSMEngine whenever state transitions."""
         self._bridge.set_fsm_state_for_heartbeat(self._fsm_state_to_int(event.current))
+
+        # AR-SLM-7: Transition any pending decision to CANCELLED on state change
+        cancelled_ids = self._arbiter.cancel_pending("STATE_CHANGE")
+        for cid in cancelled_ids:
+            asyncio.create_task(
+                self._decision_bus.publish(
+                    DecisionEvent(request_id=cid, verdict="CANCELLED", reason_code="STATE_CHANGE")
+                )
+            )
 
         # Map state transition to intended action
         action: Action | None = None

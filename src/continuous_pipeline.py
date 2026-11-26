@@ -50,6 +50,9 @@ from mock_data.schemas.events import (
     UICommandPayload,
 )
 from telemetry_ring.ring_buffer import TelemetryRingBuffer
+from slm_pipeline.config import SlmConfig
+from slm_pipeline.contracts import UtteranceUnmatched
+from slm_pipeline.service import SlmService
 
 LOGGER = logging.getLogger("eaa.continuous_pipeline")
 
@@ -74,6 +77,30 @@ _ACTION_TO_TRIGGER: dict[str, FsmTrigger] = {
 }
 
 
+class PipelineSpeaker:
+    """Speaker interface delegating to application logging or TTS."""
+
+    def __init__(self, logger: logging.Logger) -> None:
+        self._logger = logger
+        self.spoken: list[tuple[str, dict[str, object]]] = []
+
+    async def say(self, key: str, **params: object) -> None:
+        self.spoken.append((key, params))
+        self._logger.info("SPEAKER | %s %s", key, params if params else "")
+
+
+class PipelineSlmSink:
+    """EventSink publishing SLM results and status to logging and observers."""
+
+    def __init__(self, logger: logging.Logger) -> None:
+        self._logger = logger
+        self.published: list[Any] = []
+
+    async def publish(self, payload: Any) -> None:
+        self.published.append(payload)
+        self._logger.info("SLM_SINK | %s", getattr(payload, "event_type", type(payload).__name__))
+
+
 class ContinuousPipeline(FsmObserver):
     """Integrates event_pipeline and control_pipeline into a single, continuous flow."""
 
@@ -82,6 +109,8 @@ class ContinuousPipeline(FsmObserver):
         settings: OrchestratorSettings | None = None,
         db_path: str = ":memory:",
         ring_capacity: int = 1000,
+        slm_config: SlmConfig | None = None,
+        slm_client: Any | None = None,
     ) -> None:
         self._settings = settings or OrchestratorSettings()
         self._db = Database(db_path)
@@ -93,8 +122,23 @@ class ContinuousPipeline(FsmObserver):
         # Control pipeline instance
         self._control = OrchestratorPipeline(self._settings)
 
+        # SLM pipeline service
+        self._slm_config = slm_config or SlmConfig.default()
+        self._slm_client = slm_client
+        self._slm_speaker = PipelineSpeaker(LOGGER.getChild("speaker"))
+        self._slm_sink = PipelineSlmSink(LOGGER.getChild("slm_sink"))
+        self._slm_service: SlmService | None = None
+
         self._running = False
         self._event_seq = 0
+
+    @property
+    def slm(self) -> SlmService | None:
+        return self._slm_service
+
+    @property
+    def slm_speaker(self) -> PipelineSpeaker:
+        return self._slm_speaker
 
     @property
     def control(self) -> OrchestratorPipeline:
@@ -152,6 +196,17 @@ class ContinuousPipeline(FsmObserver):
         # 6. Start control pipeline (FSM, Arbiter, MCU Bridge & MockMcu)
         await self._control.start()
 
+        # 7. Start SLM pipeline service
+        self._slm_service = SlmService(
+            cfg=self._slm_config,
+            fsm=self._control,
+            bus=self._control.decision_bus,
+            speaker=self._slm_speaker,
+            sink=self._slm_sink,
+            client=self._slm_client,
+        )
+        await self._slm_service.initialize()
+
         LOGGER.info("Continuous pipeline started (FSM=%s)", self._control.fsm_state.value)
 
     async def stop(self) -> None:
@@ -159,6 +214,9 @@ class ContinuousPipeline(FsmObserver):
         if not self._running:
             return
         self._running = False
+
+        if self._slm_service:
+            await self._slm_service.stop()
 
         if self._router:
             await self._router.stop()
@@ -174,32 +232,72 @@ class ContinuousPipeline(FsmObserver):
     # Inbound: EventRouter Sink Protocol Implementation
     # ------------------------------------------------------------------
 
-    async def push(self, envelope: EventEnvelope) -> None:
-        """Accept canonical EventEnvelope from EventRouter and steer to control pipeline."""
+    async def push(self, envelope: EventEnvelope | UtteranceUnmatched | Any) -> None:
+        """Accept canonical EventEnvelope from EventRouter or UtteranceUnmatched and steer to control pipeline."""
+        if isinstance(envelope, UtteranceUnmatched):
+            if self._slm_service:
+                await self._slm_service.on_unmatched(envelope)
+            return
+
         payload = envelope.payload
-        source = envelope.source.value
+        source = envelope.source.value if hasattr(envelope.source, "value") else str(envelope.source)
+        event_type = envelope.event_type.value if hasattr(envelope.event_type, "value") else str(envelope.event_type)
+
+        # SLM Ingress: stt.unmatched
+        if event_type == "stt.unmatched" or isinstance(payload, UtteranceUnmatched):
+            if isinstance(payload, UtteranceUnmatched):
+                unmatched_ev = payload
+            elif isinstance(payload, dict):
+                unmatched_ev = UtteranceUnmatched.model_validate(payload)
+            else:
+                unmatched_ev = UtteranceUnmatched(
+                    event_id=envelope.event_id,
+                    text=str(getattr(payload, "text", "")),
+                    ingested_mono_ns=int(getattr(payload, "ingested_mono_ns", time.monotonic_ns())),
+                    wake_confirmed=bool(getattr(payload, "wake_confirmed", True)),
+                    asr_confidence=getattr(payload, "asr_confidence", None),
+                )
+            if self._slm_service:
+                await self._slm_service.on_unmatched(unmatched_ev)
+            # Rule 8.2: NEVER persist or add stt.unmatched to ring buffer!
+            return
 
         if isinstance(payload, UICommandPayload):
             action_name = payload.action.lower()
-            trigger = _ACTION_TO_TRIGGER.get(action_name)
-            if trigger:
-                await self._control.submit_event(
-                    trigger=trigger,
-                    origin=source,
-                    payload=dict(payload.parameters),
-                )
+            if action_name == "confirm":
+                req_id = str(payload.parameters.get("request_id", ""))
+                await self._control.confirm_action(req_id, origin="ui")
             else:
-                LOGGER.warning("Unknown UI action received: %s", payload.action)
+                if self._slm_service:
+                    self._slm_service.on_matched_command()
+                trigger = _ACTION_TO_TRIGGER.get(action_name)
+                if trigger:
+                    await self._control.submit_event(
+                        trigger=trigger,
+                        origin=source,
+                        payload=dict(payload.parameters),
+                    )
+                else:
+                    LOGGER.warning("Unknown UI action received: %s", payload.action)
 
         elif isinstance(payload, IntentPayload):
             intent_name = payload.intent.lower()
-            trigger = _ACTION_TO_TRIGGER.get(intent_name)
-            if trigger:
-                await self._control.submit_event(
-                    trigger=trigger,
-                    origin="stt",
-                    payload={"confidence": payload.confidence, "transcript": payload.transcript},
-                )
+            if intent_name == "confirm":
+                req_id = ""
+                parts = payload.transcript.strip().split()
+                if len(parts) > 1:
+                    req_id = parts[-1]
+                await self._control.confirm_action(req_id, origin="voice")
+            else:
+                if self._slm_service:
+                    self._slm_service.on_matched_command()
+                trigger = _ACTION_TO_TRIGGER.get(intent_name)
+                if trigger:
+                    await self._control.submit_event(
+                        trigger=trigger,
+                        origin="stt",
+                        payload={"confidence": payload.confidence, "transcript": payload.transcript},
+                    )
 
         elif isinstance(payload, CVFramePayload):
             if payload.jam_suspected:

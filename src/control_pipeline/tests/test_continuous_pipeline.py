@@ -161,3 +161,92 @@ async def test_stt_voice_intent_and_cv_jam():
 
     finally:
         await pipeline.stop()
+
+
+@pytest.mark.asyncio
+async def test_slm_unmatched_readback_confirmation_and_deenergize():
+    from slm_pipeline.config import SlmConfig
+    from slm_pipeline.contracts import TokenProb, UtteranceUnmatched
+    from slm_pipeline.tests.fakes import FakeLlm
+
+    cfg = SlmConfig.default()
+    cfg.enabled = True
+    fake_client = FakeLlm()
+    # Fake client predicts "start" with high probability
+    fake_client.scored_tokens = [TokenProb(token="start", prob=0.95)]
+
+    pipeline = ContinuousPipeline(
+        db_path=":memory:",
+        slm_config=cfg,
+        slm_client=fake_client,
+    )
+    await pipeline.start()
+
+    try:
+        await asyncio.sleep(0.3)
+
+        # 1. Inbound unmatched utterance: "could you get the belt going"
+        now_ns = time.monotonic_ns()
+        unmatched = UtteranceUnmatched(
+            event_id="unmatched_1",
+            text="could you get the belt going",
+            ingested_mono_ns=now_ns,
+            wake_confirmed=True,
+        )
+
+        await pipeline.push(unmatched)
+        await asyncio.sleep(0.1)
+
+        # FSM must NOT energize autonomously (L2 autonomy rule)
+        assert pipeline.control.fsm_state == SystemState.IDLE
+        # Speaker should have requested confirmation read-back
+        spoken_keys = [call[0] for call in pipeline.slm_speaker.spoken]
+        assert "READBACK_START" in spoken_keys
+
+        # 2. Operator confirms via UI
+        pending_id = ""
+        for ev in pipeline._slm_sink.published:
+            if hasattr(ev, "action_request_id") and ev.action_request_id:
+                pending_id = ev.action_request_id
+                break
+
+        confirm_envelope = EventEnvelope(
+            schema_version=1,
+            event_id=uuid.uuid4().hex,
+            event_type=EventType.UI_COMMAND,
+            source=EventSource.UI,
+            topic=TOPIC_UI_COMMAND,
+            sequence=2,
+            event_time=time.time(),
+            ingested_at=time.time(),
+            payload=UICommandPayload(action="confirm", parameters={"request_id": pending_id}),
+        )
+        await pipeline.push(confirm_envelope)
+        await asyncio.sleep(0.1)
+
+        # FSM is now RUNNING!
+        assert pipeline.control.fsm_state == SystemState.RUNNING
+
+        # 3. Inbound unmatched de-energize: "shut it down"
+        # Fake client predicts "stop"
+        fake_client.scored_tokens = [TokenProb(token="stop", prob=0.96)]
+        stop_unmatched = UtteranceUnmatched(
+            event_id="unmatched_2",
+            text="shut it down",
+            ingested_mono_ns=time.monotonic_ns(),
+            wake_confirmed=True,
+        )
+        await pipeline.push(stop_unmatched)
+        await asyncio.sleep(0.1)
+
+        assert pipeline.control.fsm_state == SystemState.IDLE
+
+        # 4. Check Privacy rule: no utterance text stored in ring buffer
+        ring_items = await pipeline.ring_buffer.get_latest(count=20)
+        for item in ring_items:
+            payload_str = str(item.payload)
+            assert "could you get the belt going" not in payload_str
+            assert "shut it down" not in payload_str
+
+    finally:
+        await pipeline.stop()

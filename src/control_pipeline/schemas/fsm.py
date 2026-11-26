@@ -9,6 +9,7 @@ import enum
 from typing import Any, NamedTuple
 
 from pydantic import BaseModel, ConfigDict, Field
+from dataclasses import dataclass
 
 
 # ---------------------------------------------------------------------------
@@ -119,3 +120,12 @@ class FsmStateChanged(BaseModel):
     origin: str
     at: float
     payload: dict[str, Any] = Field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class FsmSnapshot:
+    """Point-in-time snapshot of the FSM state, version, and permitted actions."""
+    state: str
+    fsm_version: int
+    permitted: frozenset[Action]
+    last_reason: str | None = None

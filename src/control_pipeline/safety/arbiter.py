@@ -91,6 +91,9 @@ class SafetyInvariantArbiter:
         self._max_intent_age_ms = max_intent_age_ms
         self._log = logger or logging.getLogger(__name__)
 
+        # Pending confirmation store for AR-SLM-3 / AR-SLM-5
+        self._pending_confirmation: dict[str, Any] | None = None
+
         # Counters (stats())
         self._total_evaluated: int = 0
         self._total_permitted: int = 0
@@ -104,6 +107,8 @@ class SafetyInvariantArbiter:
             "voice_confidence": 0,
             "voice_intent_age": 0,
             "fault_latched": 0,
+            "origin_prohibited": 0,
+            "confirmation_expired": 0,
         }
 
     # ------------------------------------------------------------------
@@ -116,6 +121,9 @@ class SafetyInvariantArbiter:
         proposed_setpoint_mms: int | None,
         permitted: bool,
         code: ReasonCode,
+        outcome: str = "PERMIT",
+        decision_id: str | None = None,
+        confirm_ttl_ms: int | None = None,
     ) -> ArbiterDecision:
         """Construct and return an :class:`ArbiterDecision`."""
         return ArbiterDecision(
@@ -124,6 +132,9 @@ class SafetyInvariantArbiter:
             reason_name=code.name,
             proposed_action=action,
             proposed_setpoint_mms=proposed_setpoint_mms,
+            outcome=outcome,
+            decision_id=decision_id,
+            confirm_ttl_ms=confirm_ttl_ms,
         )
 
     def _deny(
@@ -365,6 +376,11 @@ class SafetyInvariantArbiter:
         self._total_evaluated += 1
         s = proposed_setpoint_mms  # local alias for brevity
 
+        # ── AR-SLM-7: Origin SLM can never produce HALT ────────────────
+        origin_lower = origin.lower()
+        if origin_lower == "slm" and action in _ALWAYS_PERMIT:
+            return self._deny(action, s, ReasonCode.ORIGIN_NOT_ALLOWED, "origin_prohibited")
+
         # ── HALT: unconditionally permitted ────────────────────────────
         if action in _ALWAYS_PERMIT:
             self._log.debug("arbiter: HALT always permitted")
@@ -377,11 +393,41 @@ class SafetyInvariantArbiter:
         is_stop_class = action in _STOP_CLASS
 
         # ── STOP / PAUSE: only hard link failure can block ─────────────
+        # AR-SLM-2: origin SLM for stop-class is auto-permitted if invariants pass
         if is_stop_class:
             link = sensor.link_state
             if link in ("DOWN", "SYNC", "LOST"):
                 return self._deny(action, s, ReasonCode.LINK_DOWN, "I-4_link")
             return self._permit(action, s)
+
+        # ── AR-SLM-3: Energizing / Recovery from origin SLM require confirmation ──
+        if origin_lower == "slm" and (is_energizing or action in _RECOVERY):
+            import time, uuid
+            dec_id = str(payload.get("request_id") or uuid.uuid4().hex)
+            ttl = int(payload.get("confirm_ttl_ms", 5000))
+            if self._pending_confirmation is not None:
+                self._log.warning(
+                    "Replacing prior pending confirmation %s with %s",
+                    self._pending_confirmation.get("decision_id"),
+                    dec_id,
+                )
+            self._pending_confirmation = {
+                "decision_id": dec_id,
+                "action": action,
+                "setpoint_mms": s,
+                "created_mono_ns": time.monotonic_ns(),
+                "confirm_ttl_ms": ttl,
+                "payload": payload,
+            }
+            return self._decide(
+                action,
+                s,
+                permitted=False,
+                code=ReasonCode.NEEDS_CONFIRMATION,
+                outcome="NEED_CONFIRMATION",
+                decision_id=dec_id,
+                confirm_ttl_ms=ttl,
+            )
 
         # ── All remaining actions (energizing + RECOVER) ───────────────
 
@@ -419,6 +465,85 @@ class SafetyInvariantArbiter:
 
         # All invariants passed.
         return self._permit(action, s)
+
+    async def confirm_pending(
+        self,
+        decision_id: str,
+        origin: str = "voice",
+    ) -> ArbiterDecision:
+        """AR-SLM-3 & AR-SLM-4: Confirm a pending action with a non-SLM origin and re-evaluate invariants."""
+        if origin.lower() == "slm":
+            return ArbiterDecision(
+                permitted=False,
+                reason_code=int(ReasonCode.ORIGIN_NOT_ALLOWED),
+                reason_name="ORIGIN_NOT_ALLOWED",
+                proposed_action=Action.STOP,
+                proposed_setpoint_mms=None,
+                outcome="BLOCK",
+            )
+
+        pending = self._pending_confirmation
+        if pending is None or pending.get("decision_id") != decision_id:
+            return ArbiterDecision(
+                permitted=False,
+                reason_code=int(ReasonCode.ERR_EXPIRED),
+                reason_name="ERR_EXPIRED",
+                proposed_action=Action.STOP,
+                proposed_setpoint_mms=None,
+                outcome="BLOCK",
+            )
+
+        # AR-SLM-6: Check TTL expiry
+        import time
+        now_ns = time.monotonic_ns()
+        age_ms = (now_ns - pending["created_mono_ns"]) / 1_000_000.0
+        if age_ms > pending["confirm_ttl_ms"]:
+            self._pending_confirmation = None
+            self._denied["confirmation_expired"] = self._denied.get("confirmation_expired", 0) + 1
+            self._log.warning(
+                "Pending confirmation %s expired (age=%.1f ms > ttl=%d ms)",
+                decision_id,
+                age_ms,
+                pending["confirm_ttl_ms"],
+            )
+            return ArbiterDecision(
+                permitted=False,
+                reason_code=int(ReasonCode.ERR_EXPIRED),
+                reason_name="ERR_EXPIRED",
+                proposed_action=pending["action"],
+                proposed_setpoint_mms=pending["setpoint_mms"],
+                outcome="EXPIRED",
+            )
+
+        # AR-SLM-4: Re-evaluate through full invariant chain
+        self._pending_confirmation = None
+        act = pending["action"]
+        s = pending["setpoint_mms"]
+        payload = pending["payload"]
+        return await self.evaluate(act, s, origin=origin, payload=payload)
+
+    def cancel_pending(self, reason: str = "STATE_CHANGE") -> list[str]:
+        """AR-SLM-7: Transition any pending decision to CANCELLED on state change."""
+        if self._pending_confirmation is not None:
+            dec_id = self._pending_confirmation["decision_id"]
+            self._pending_confirmation = None
+            self._log.info("Cancelled pending confirmation %s due to %s", dec_id, reason)
+            return [dec_id]
+        return []
+
+    def purge_expired_pending(self) -> list[str]:
+        """AR-SLM-6: Expire pending decision if confirm_ttl_ms elapsed."""
+        if self._pending_confirmation is not None:
+            import time
+            now_ns = time.monotonic_ns()
+            age_ms = (now_ns - self._pending_confirmation["created_mono_ns"]) / 1_000_000.0
+            if age_ms > self._pending_confirmation["confirm_ttl_ms"]:
+                dec_id = self._pending_confirmation["decision_id"]
+                self._pending_confirmation = None
+                self._denied["confirmation_expired"] = self._denied.get("confirmation_expired", 0) + 1
+                self._log.warning("Purged expired confirmation %s", dec_id)
+                return [dec_id]
+        return []
 
     def stats(self) -> dict[str, int]:
         """Return evaluation counters for observability and testing.

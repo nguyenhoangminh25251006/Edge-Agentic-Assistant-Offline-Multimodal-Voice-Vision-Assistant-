@@ -1,0 +1,60 @@
+# Admission
+SLM_UNAVAILABLE: "I can only handle standard commands right now."
+WORKING: "One moment."
+
+# Clarification
+CLARIFY_NONE: "Sorry, I did not catch a command."
+CLARIFY_TWO: "Did you mean {a} or {b}?"
+NEED_SPEED: "What speed should I use?"
+NEED_UNIT: "Please give the speed with a unit, for example two hundred millimeters per second."
+SPEED_AMBIGUOUS: "I heard more than one speed. Please say one."
+SPEED_RANGE: "Speed must be between {min} and {max} millimeters per second."
+
+# Rejection
+ILLEGAL_ACTION: "I cannot {action} while the machine is {state}."
+
+# Read-back & Confirmation
+READBACK_START: "Start the belt? Say the wake word and confirm."
+READBACK_RESUME: "Resume the belt? Say the wake word and confirm."
+READBACK_SET_SPEED: "Set the speed to {speed} millimeters per second? Say the wake word and confirm."
+READBACK_RECOVER: "Recover and clear fault? Say the wake word and confirm."
+CONFIRM_EXPIRED: "Cancelled. No confirmation heard."
+
+# State & Status Info
+STATUS_IDLE: "The conveyor is currently idle and ready to start."
+STATUS_RUNNING: "The conveyor is running normally."
+STATUS_PAUSED: "The conveyor is currently paused."
+STATUS_JAMMED: "A conveyor jam is detected. Please clear the obstruction."
+STATUS_SAFETY_FAULT: "Safety fault active. Emergency stop or hardware interlock is engaged."
+STATUS_RECOVERING: "System is in recovery sequence."
+
+# Explanations & Help
+WHY_NONE: "No fault or abnormal stop has been recorded."
+HELP_CANNED: "You can ask me to start, stop, pause, resume the belt, or set the speed in millimeters per second."
+HELP_NOT_FOUND: "I do not have specific operating instructions for that question."
+
+# Hardware and Safety Reason Codes
+REASON_OK_NOMINAL: "System operating normally."
+REASON_ERR_ESTOP_ACTIVE: "Emergency stop button is depressed."
+REASON_ERR_PHOTOELECTRIC_BLOCKED: "Photoelectric sensor beam is obstructed."
+REASON_ERR_MOTOR_OVERCURRENT: "Motor current draw exceeded safe electrical limit."
+REASON_ERR_MOTOR_OVERTEMP: "Motor temperature exceeded thermal limit."
+REASON_ERR_HEARTBEAT_TIMEOUT: "Heartbeat between controller and motor bridge timed out."
+REASON_ERR_STATE_NOT_PERMITTED: "The requested action is not permitted in the current state."
+REASON_ERR_SENSOR_LOSS: "Sensor readings are unresponsive or lost."
+REASON_ERR_BAD_PARAM: "Invalid command parameters."
+REASON_ERR_EXPIRED: "Command timed out before execution."
+REASON_ERR_BUSY: "Controller is busy with another operation."
+REASON_ERR_UNKNOWN_CMD: "Unknown command received."
+REASON_ERR_LIMIT_EXCEEDED: "Operational limit exceeded."
+REASON_ERR_MPU_HALT_REQUEST: "Manual system halt acknowledged."
+REASON_ERR_FAULT_LATCHED: "Safety fault latched. Clearance verification required."
+REASON_ERR_NOT_SYNCED: "Serial link synchronization pending."
+REASON_LINK_DOWN: "Serial communication link is down."
+REASON_LINK_STALE: "Serial link telemetry is stale."
+REASON_STALE_SENSORS: "Sensor readings are older than the freshness threshold."
+REASON_ORIGIN_NOT_ALLOWED: "Command origin not authorized for this operation."
+REASON_LOW_CONFIDENCE: "Voice recognition confidence below required threshold."
+REASON_INTENT_EXPIRED: "Voice intent expired before confirmation."
+REASON_NEED_CONFIRMATION: "Operator confirmation required."
+REASON_CONFIRMATION_EXPIRED: "Confirmation deadline elapsed without operator response."
