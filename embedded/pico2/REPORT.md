@@ -14,15 +14,16 @@
 | File nạp sẵn `.uf2` (full + bench) | ✅ | `embedded/pico2/release/` |
 | Protocol B-03 v1.1 (CRC16, COBS, 13 loại message) | ✅ test | 29/29 cross-check **trùng từng byte** với `codec.py` + `transport.py` của nhánh `orchestrator` |
 | Safety FSM của MCU | ✅ test | 13 kịch bản fault-injection chạy trên PC (`safety_host_test.c`) |
-| Điều khiển motor 200 Hz (open-loop, sẵn PI cho encoder) | ✅ **đo trên Pico thật** | jitter max **129 µs** / 60 s có tải (giới hạn NFR-01: 1000 µs), thân vòng lặp max 146 µs |
+| Điều khiển motor **100 Hz** (open-loop; vì sao không cần 200 Hz: mục 6.1) | ✅ **đo trên Pico thật** | jitter max **207 µs** / 60 s khi wake word chạy liên tục (giới hạn NFR-01: 1000 µs = 10 % chu kỳ), thân vòng lặp max 255 µs |
+| Cắt motor khi có sự cố (T1) | ✅ **đo trên Pico thật** | E-stop qua ngắt và mọi trip của safety cắt driver trực tiếp, không chờ vòng điều khiển (mục 6.2) |
 | Link B-03 + safety FSM trên Pico thật | ✅ **30/30** | `embedded/pi/hil_test.py` (mục 12.1) |
 | Watchdog phần cứng | ✅ **đo thật** | firmware cố ý treo → chip reset sau ~0.55 s (500 ms + 50 ms trễ lệnh) |
-| Port sang UNO Q (STM32U585) | ✅ build, ⏳ chưa có board | Flash 78 KB / 2 MB, RAM 32 KB / 768 KB (mục 13) |
+| Port sang UNO Q (STM32U585) | ✅ build, ⏳ chưa có board | cùng code + cùng thông số với Pico; Flash 811 KB / 2 MB, RAM 174 KB / 768 KB (gồm wake word và clip bench; mục 13) |
 | Sensor INA226, MLX90614, E18-D80NK, E-stop | ✅ code, ⏳ chưa có hàng | |
 | Mic I2S qua PIO + wake word + kênh audio cho STT | ✅ model "Hey Edgie" chạy trên Pico (chưa có mic: test bằng clip trong flash) | `kws/WAKEWORD_REPORT.md` |
 | Công cụ phía Pi: `link_test.py`, `audio_rx.py`, `voice_to_belt.py` | ✅ test | `link_test.py` chạy với `MockMcu` thật của orchestrator: HELLO → RUN → telemetry → quá dòng → EVENT + ACK, 0 frame lỗi |
 
-**Chưa làm / chưa kiểm được:** nối dây UART thật với Pi 3B (link đã test qua USB, cùng code), motor + BTS7960, sensor, mic (bỏ qua theo yêu cầu), giọng người thật cho wake word, encoder (CH-107 còn bị chặn), chạy trên UNO Q thật, nối `transport_profile: pipe` trong orchestrator (CH-200).
+**Chưa làm / chưa kiểm được:** nối dây UART thật với Pi 3B (link đã test qua USB, cùng code), motor + BTS7960, sensor, mic (bỏ qua theo yêu cầu), giọng người thật cho wake word, encoder (không thuộc phase này, CH-107), chạy trên UNO Q thật, nối `transport_profile: pipe` trong orchestrator (CH-200).
 
 ---
 
@@ -56,26 +57,26 @@ Mục tiêu không phải "chạy được trên Pico" mà là **mọi thứ là
                     │ safety  (prio P1, 100 Hz)  FSM + invariant + watchdog HW  ──┼─► event
                     │   │ run / setpoint / hard_stop                              │
                     │   ▼                                                         │
-                    │ control (COOP 1, 200 Hz) ramp, open-loop/PI ──► PWM + EN ───┼─► BTS7960 ─► motor
-                    │   ▲ E-stop pin đọc trực tiếp mỗi 5 ms                       │
+                    │ control (COOP 1, 100 Hz) ramp, open-loop ──► PWM + EN ──────┼─► BTS7960 ─► motor
+                    │   ▲ E-stop: ngắt GPIO cắt EN ngay + đọc mức mỗi 10 ms       │
                     │ sensors (P4, 50 Hz) INA226, MLX90614 (I2C), E18, E-stop     │
-                    │ voice   (P8) mic I2S(PIO)→MFCC+VAD→KWS 200 ms→ WAKE   ; audio ─────┼─► USB CDC1 ─► STT
+                    │ voice   (P8) mic I2S(PIO)→MFCC+VAD→KWS 100 ms→ WAKE   ; audio ─────┼─► USB CDC1 ─► STT
  USB CDC0 ◄────────►│ shell/log  `eaa status|run|stop|clear|hb|wake|vstop`        │
                     └──────────────────────────────────────────────────────────────┘
 ```
 
 Quy tắc sở hữu (để không ai "đi tắt" qua an toàn):
 - **Chỉ `safety.c`** quyết định motor có được chạy không.
-- **Chỉ `control.c`** ghi PWM và chân EN.
+- **Chỉ `control.c`** bật PWM và chân EN. Đường cắt `motor_kill()` (safety trip, ngắt E-stop) chỉ được **tắt**, và khi đã cắt thì `control.c` không bật lại được cho tới CLEAR_FAULT.
 - **Chỉ `bridge.c`** gửi lên UART B-03 → frame không bao giờ chen lẫn nhau.
 
 | Thread | Chu kỳ | Ưu tiên | Ghi chú |
 |---|---|---|---|
-| control | 5 ms (k_timer) | cooperative 1 (cao nhất) | Không bị thread nào chen ngang; thân vòng lặp ngắn (chỉ tính toán + ghi PWM). |
+| control | 10 ms (k_timer) | cooperative 1 (cao nhất) | Không bị thread nào chen ngang; thân vòng lặp ngắn (chỉ tính toán + ghi PWM). |
 | safety | 10 ms | preempt 1 | Kiểm invariant, nuôi watchdog phần cứng 500 ms. |
 | bridge | theo sự kiện + 50 ms | preempt 3 | |
 | sensors | 20 ms (MLX 100 ms) | preempt 4 | I2C chậm, không bao giờ chạy trong vòng motor. |
-| voice | 20 ms/hop, KWS mỗi 200 ms khi có tiếng nói | preempt 8 | Thấp nhất trong các thread chức năng. |
+| voice | 20 ms/hop, KWS mỗi 100 ms khi có tiếng nói | preempt 8 | Thấp nhất trong các thread chức năng: wake word cần **độ trễ** thấp nhất, nhưng không được chiếm CPU trước an toàn. |
 | ISR mic (PIO0 IRQ) | 32 000 lần/s, rất ngắn | IRQ prio 1 | Đây là nguồn jitter chính phải đo ở M5/M6. DMA là tối ưu tiếp theo. |
 
 ---
@@ -115,7 +116,7 @@ Trạng thái: `BOOT → STOPPED ⇄ RUNNING`, bất kỳ → `SAFE_STOP` (chố
 
 | Invariant | Ngưỡng (Kconfig) | Event / Reason | Hành động |
 |---|---|---|---|
-| E-stop mở | tức thì (đọc mỗi 5 ms trong vòng motor) | HARDWARE_ESTOP / ESTOP_ACTIVE | cắt PWM + EN ngay, chốt lỗi |
+| E-stop mở | ngắt GPIO (cạnh mở), cộng đọc mức mỗi 10 ms | HARDWARE_ESTOP / ESTOP_ACTIVE | cắt EN + PWM ngay trong ngắt, chốt lỗi |
 | E-stop đóng lại | — | ESTOP_RELEASED | vẫn chốt, cần CLEAR_FAULT |
 | Mất heartbeat khi đang chạy | 300 ms | HEARTBEAT_TIMEOUT | cắt, chốt |
 | Mất heartbeat khi đang dừng | 300 ms | — | chỉ xoá HB_VALID, từ chối RUN |
@@ -134,8 +135,45 @@ CLEAR_FAULT chỉ thành công khi **nguyên nhân đã hết** (E-stop đóng, 
 - BTS7960: RPWM = PWM 20 kHz (ngoài vùng nghe), LPWM giữ 0 (băng chạy 1 chiều), R_EN + L_EN chung 1 chân.
 - Ramp setpoint 250 mm/s² (Kconfig) để không giật băng và giảm xung dòng.
 - **Open-loop (mặc định, vì CH-107 chưa có encoder):** `pwm‰ = 100 + 1.8 × mm/s`. Hai hệ số này **phải hiệu chuẩn**: chạy vài mức PWM, đo tốc độ băng thật bằng thước + đồng hồ, sửa `CONFIG_EAA_OPENLOOP_PWM_OFFSET_PM` và `..._GAIN_X100`. `speed_mms` trong telemetry lúc này là **ước lượng** — ghi rõ trong báo cáo.
-- **Closed-loop (khi có encoder):** bật `CONFIG_EAA_ENCODER=y`, nhập số xung/vòng (×4) và chu vi con lăn → feed-forward + PI. Encoder giải mã bằng ngắt GPIO (code portable); trên STM32 có thể thay bằng timer encoder mode.
+- **Encoder không thuộc phase này** (CH-107). Code closed-loop cũ vẫn để tắt (`CONFIG_EAA_ENCODER=n`), không dùng để biện minh cho tần số vòng.
 - Thread tự đo **jitter chu kỳ** và **thời gian thực thi** → `eaa status`; đây là số liệu cho NFR-01 (≤ 1 ms).
+
+### 6.1 Tần số vòng điều khiển: vì sao 100 Hz, không phải 200 Hz
+
+Câu hỏi đúng là "hệ thống cần gì", không phải "nhanh hơn thì tốt hơn". 200 Hz trước đây là con số chọn trước rồi mới đặt jitter 1 ms quanh nó; chưa có phép tính nào bắt buộc 200 Hz. Ở phase này (open-loop, chưa có encoder), vòng điều khiển chỉ làm 3 việc. Đây là yêu cầu của từng việc:
+
+| Việc vòng phải làm | Yêu cầu thật | Ở 200 Hz | Ở 100 Hz | Kết luận |
+|---|---|---|---|---|
+| Ramp setpoint 250 mm/s² | bước nhỏ hơn nhiều so với tốc độ băng đáp ứng được | 1,25 mm/s mỗi tick (2,3 ‰ PWM) | 2,5 mm/s mỗi tick (4,5 ‰ PWM) | Motor giảm tốc 24 V + băng có hằng số thời gian cơ cỡ hàng chục ms trở lên (chưa đo, CH-83), nên cả hai đều mượt. 100 Hz đủ. |
+| Giữ driver tắt khi SAFE_STOP / E-stop | phải cắt ngay, không phụ thuộc chu kỳ | trước đây chờ tới tick kế: ≤ 5,3 ms | trước đây ≤ 10,3 ms | **Đã tách khỏi vòng** (6.2). Tần số vòng không còn quyết định T1. |
+| Đọc sensor | E18-D80NK (phát hiện kẹt sau 3 s), INA226 (lọc quá dòng 60 ms), MLX90614 (nhiệt, chậm) | — | — | Sensor đọc ở thread riêng 50 Hz, không nằm trong vòng. Không sensor nào cần 200 Hz. |
+
+Các con số khác của belt:
+* **Quãng chạy trong 1 chu kỳ ở tốc độ tối đa 500 mm/s:** 2,5 mm ở 200 Hz, 5 mm ở 100 Hz. Chỉ có ý nghĩa nếu việc dừng phải chờ tick, và giờ thì không còn phải chờ.
+* **Quãng chạy trong T1 đo được (≤ 22 µs):** 0,01 mm ở 500 mm/s. Quãng trôi sau khi cắt (do quán tính băng) lớn hơn rất nhiều và cần đo trên rig.
+* **Jitter:** giới hạn NFR-01 1 ms bằng **10 % chu kỳ ở 100 Hz** (mức thường dùng cho vòng lấy mẫu). Ở 200 Hz, cùng 1 ms lại là 20 %, tức quá lỏng. Đo được 207 µs, bằng 2 % chu kỳ.
+* **CPU:** thân vòng max 255 µs → ≤ 2,6 % ở 100 Hz (≤ 5,1 % ở 200 Hz). Tiết kiệm khoảng 2,5 % CPU, nhưng **không phải** lý do chính: wake word nhanh lên là nhờ stride của nó (WAKEWORD_REPORT §4.4), không nhờ phần CPU này.
+
+**Khi nào phải tính lại:** khi có encoder (không thuộc phase này) và đo được hằng số thời gian cơ τ của băng. Công thức: băng thông vòng tốc độ f_bw ≈ vài lần 1/(2πτ), lấy mẫu ≥ 20 × f_bw. Nếu τ < ~30 ms thì 100 Hz không còn đủ dư. `CONFIG_EAA_CONTROL_PERIOD_US=5000` vẫn build và pass test, nên đổi lại chỉ là một dòng cấu hình.
+
+### 6.2 T1: từ lúc phát hiện sự cố tới lúc cắt driver
+
+T1 là yêu cầu **đầu-cuối riêng**, đo riêng, không suy ra từ tần số vòng. Firmware giờ cắt driver trực tiếp, không chờ vòng điều khiển:
+* **E-stop:** ngắt GPIO khi contact mở → `motor_kill()` kéo R_EN/L_EN xuống thấp ngay trong ngắt (không debounce: nhiễu chỉ gây dừng an toàn có chốt, không bao giờ làm lỡ một lần dừng thật).
+* **Mọi trip của safety** (HALT từ MPU, mất heartbeat, quá dòng, quá nhiệt, kẹt, mất sensor): `trip()` gọi `motor_kill()` ngay khi phát hiện.
+* Khi đã cắt, `motor_apply()` của vòng điều khiển không bật lại được cho tới CLEAR_FAULT. Kiểm-và-ghi có khoá nên ngắt chen vào giữa cũng không bật lại được.
+
+Đo trên Pico 2 (`eaa t1test`: ép đầu vào pad E-stop thành "mở" bằng `INOVER` của RP2350, nên ngắt chạy đúng đường GPIO thật; 20 lần khi băng đang chạy 300 mm/s, wake word chạy liên tục):
+
+| Đường cắt | T1 đo được (20 lần) |
+|---|---|
+| **Trực tiếp (bản mới)**: phát hiện → EN xuống thấp | **13–22 µs** |
+| Chờ tick vòng 100 Hz (chỉ để so sánh) | 0,3–9,6 ms (phụ thuộc pha) |
+
+Chưa gồm trong số đo: trễ từ chân pad vào ngắt (vài µs, cần logic analyzer) và thời gian BTS7960 tắt. Trên rig, E-stop còn có relay cứng cắt nguồn motor, độc lập với MCU.
+
+### 6.3 Pico 2 và STM32U585: dùng chung thông số được không
+Được, và đó là cách đang làm: mọi thông số thời gian nằm trong Kconfig, giống nhau cho cả hai board. Pico 2 là bản **chậm hơn** (đọc flash qua QSPI, Zephyr tắt DSP mặc định), nên nếu thông số đạt trên Pico thì có dư trên STM32U585 (flash trong chip có ART cache, 160 MHz). Không có hệ số "scale" nào để biến số đo trên Pico thành số của UNO Q. Bản UNO Q build cùng code, cùng Kconfig (vòng 100 Hz, stride wake 100 ms, ngưỡng 95 %, đường cắt trực tiếp). `eaa t1test` trên STM32U585 dùng thanh ghi `EXTI->SWIER1` để kích đúng đường ngắt E-stop (thay cho `INOVER` của RP2350). Khi có board thì chạy lại `hil_test.py`, `eaa t1test` và `kws bench`.
 
 ---
 
@@ -146,8 +184,8 @@ Chi tiết, số đo và benchmark: **[../kws/WAKEWORD_REPORT.md](../kws/WAKEWOR
 ```
 INMP441 ──I2S(PIO, 1.024 MHz BCK)──► ISR ──► ring ──► voice thread, mỗi 20 ms:
    ├─► MFCC 49×10 + VAD năng lượng (0.5 ms, luôn chạy = 2.7 % CPU)
-   ├─► chỉ khi có tiếng nói: DS-CNN-S int8 "Hey Edgie" mỗi 200 ms (65 ms/lần ≈ 35 % CPU)
-   │     trung bình 2 điểm ≥ 80 % → cờ VOICE_ACTIVE + LED GP15 + VOICE_EVENT WAKE → cửa sổ 5 s
+   ├─► chỉ khi có tiếng nói: DS-CNN-S int8 "Hey Edgie" mỗi 100 ms (65 ms/lần ≈ 68 % CPU), trễ wake p50 80 ms
+   │     trung bình 2 điểm ≥ 95 % → cờ VOICE_ACTIVE + LED GP15 + VOICE_EVENT WAKE → cửa sổ 5 s
    └─► trong cửa sổ: gửi PCM 16-bit qua USB CDC1 ─► Pi: audio_rx → Vosk STT → SLM
 Nút push-to-talk GP16 / `eaa wake` = wake (test). "stop" nói ra: đường code còn (`eaa vstop`),
 model hiện chỉ có wake (silence / unknown / wake).
@@ -384,12 +422,13 @@ Ghi số liệu với nhãn **"Pico 2 + Pi 3B (proxy)"** như quy ước ở CH-
 | Telemetry | **20.00 Hz**, 0 frame lỗi |
 | Kiểm lệnh | 600 mm/s → LIMIT_EXCEEDED; 20 mm/s → BAD_PARAM; ttl 0 → EXPIRED; trùng `cmd_id` → DUPLICATE |
 | RUN | CMD_ACK sau 62 ms; ramp tới 150 mm/s sau 0.61 s; PWM = 370‰ đúng công thức open-loop |
-| Mất heartbeat | HEARTBEAT_TIMEOUT tới PC 360 ms sau heartbeat cuối (300 ms timeout + ≤ 10 ms tick an toàn + trễ USB/Windows); SAFE_STOP, tốc độ 0, lỗi chốt; RUN bị từ chối FAULT_LATCHED; CLEAR được sau khi heartbeat quay lại |
+| Mất heartbeat | HEARTBEAT_TIMEOUT tới PC 328–360 ms sau heartbeat cuối (300 ms timeout + ≤ 10 ms tick an toàn + trễ USB/Windows); SAFE_STOP, tốc độ 0, lỗi chốt; RUN bị từ chối FAULT_LATCHED; CLEAR được sau khi heartbeat quay lại |
 | HALT | SAFE_STOP, fault 0x0D |
 | Gửi lại event | không ACK → 11 bản trong 1 s, cách nhau ~117 ms, cùng `event_seq`; ACK xong thì ngừng |
 | Dữ liệu rác | frame sai CRC và COBS hỏng bị đếm và bỏ; link vẫn chạy |
 | Giọng nói | wake → VOICE_EVENT sau 62 ms, cờ VOICE_ACTIVE bật/tắt đúng; "stop" → MCU tự dừng băng có ramp (0.88 s từ 200 mm/s) |
-| **Jitter (NFR-01)** | **max 129 µs** trong 60 s (link + telemetry + shell + ISR mic 32 kHz + belt đổi tốc liên tục); thân vòng max 146 µs |
+| **Jitter (NFR-01)** | vòng 100 Hz, wake word chạy mỗi 100 ms liên tục (VAD tắt): **max 207 µs** trong 60 s, thân vòng max 255 µs (lần đo cũ ở 200 Hz không có model: 129 µs) |
+| **T1** | `eaa t1test` 20 lần khi băng chạy: phát hiện → EN tắt **13–22 µs** (mục 6.2) |
 | Watchdog | `eaa wdtest` → chip reset sau ~0.55 s, boot lại bình thường |
 | Kênh audio | `eaa wake` → 80 128 mẫu (5.01 s, 16 kHz) qua CDC, 0 frame lỗi (mẫu = 0 vì chưa cắm mic) |
 
@@ -414,7 +453,7 @@ Lõi CPU giống nhau nên logic C (protocol, safety, control) chạy y hệt. N
 
 | Khía cạnh | Pico 2 (RP2350) | UNO Q (STM32U585) | Ảnh hưởng |
 |---|---|---|---|
-| Timer hệ thống | timer 1 MHz | board chính thức dùng **LPTIM1 32 kHz → 4096 tick/s** | 5 ms = 20.48 tick → làm tròn thành 21 tick = 5.13 ms: vòng chạy ~195 Hz, lệch ~244 µs mỗi chu kỳ, bộ đếm cycle chỉ phân giải ~30 µs. **Đã sửa:** SysTick 160 MHz, 10 000 tick/s (5 ms = đúng 50 tick). |
+| Timer hệ thống | timer 1 MHz | board chính thức dùng **LPTIM1 32 kHz → 4096 tick/s** | 5 ms = 20.48 tick → làm tròn thành 21 tick = 5.13 ms: vòng chạy ~195 Hz, lệch ~244 µs mỗi chu kỳ, bộ đếm cycle chỉ phân giải ~30 µs. **Đã sửa:** SysTick 160 MHz, 10 000 tick/s (5 ms = đúng 50 tick; chu kỳ 10 ms hiện tại = đúng 100 tick). |
 | Watchdog | tắt được (cần cho `bootsel`) | IWDG **không tắt được** sau khi bật | `eaa bootsel` chỉ có trên RP2350 |
 | PWM | PWM slice 1 | TIM3 CH3/CH4 (PB0 = D3, PB1 = D6) | chỉ đổi devicetree |
 | Link MPU | UART0 GP0/GP1 | **LPUART1 PG7/PG8 (có RTS/CTS)** nối nội bộ tới QRB2210 | phía Linux là `/dev/ttyHS1`, đúng `uart_device` trong config orchestrator |
@@ -469,7 +508,7 @@ embedded/
 │       ├── src/main.c          khởi động + shell
 │       ├── src/eaa.h           giao diện các module
 │       ├── src/safety.c        FSM an toàn
-│       ├── src/control.c       vòng 200 Hz
+│       ├── src/control.c       vòng 100 Hz
 │       ├── src/motor.c, encoder.c, sensors.c, bridge.c
 │       ├── src/proto/          b03.c, cobs.c, crc16.c (C thuần)
 │       ├── src/voice/          voice.c, i2s_in_rp2.c, audio_out.c, kws_stub.c, kws_ei.cpp

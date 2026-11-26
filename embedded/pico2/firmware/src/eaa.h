@@ -36,10 +36,21 @@ int sensors_init(void);
 void sensors_start(void);
 void sensors_get(struct eaa_sensors *out);
 bool sensors_estop_open_now(void); /* direct pin read, for the control loop */
+int sensors_estop_inject(bool open); /* bench only: force the pin input (RP2350) */
 
 /* ---- motor.c ---- */
 int motor_init(void);
 void motor_apply(bool enable, uint16_t pwm_pm);
+/* T1 hard-stop path: driver off now (ISR-safe), stays off until motor_unkill(). */
+void motor_kill(uint32_t detect_cyc);
+void motor_unkill(void);
+void motor_loop_saw_stop(void);
+struct eaa_t1_stats {
+	uint32_t count;        /* hard stops measured */
+	uint32_t last_us, max_us;            /* detection -> driver off (direct path) */
+	uint32_t loop_last_us, loop_max_us;  /* detection -> next control tick (reference) */
+};
+void motor_get_t1(struct eaa_t1_stats *out, bool reset);
 
 /* ---- encoder.c ---- */
 int encoder_init(void);
@@ -78,6 +89,8 @@ uint8_t safety_handle_cmd(const struct b03_cmd *cmd, uint8_t *reason);
 void safety_voice_stop(void);
 void safety_set_voice_active(bool active);
 void safety_set_mic_ok(bool ok);
+/* E-stop pin interrupt (sensors.c): trip at once, from ISR context. */
+void safety_estop_isr(uint32_t detect_cyc);
 /* Only before a deliberate reboot into the bootloader. */
 void safety_watchdog_disable(void);
 bool safety_watchdog_active(void);

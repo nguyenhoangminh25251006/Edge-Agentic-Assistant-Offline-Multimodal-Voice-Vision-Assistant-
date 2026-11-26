@@ -3,8 +3,8 @@
  * file runs on the STM32U585 with a different devicetree.
  *
  * I2C is slow and can stall, so it runs here at 20 ms and never inside the
- * 200 Hz control loop. The E-stop pin is also read directly by the control
- * loop (sensors_estop_open_now) for the fastest cut.
+ * control loop. The E-stop pin raises an interrupt that cuts the motor at once
+ * (T1), and the control loop also reads the level every tick (sensors_estop_open_now).
  */
 #include <zephyr/kernel.h>
 #include <zephyr/device.h>
@@ -22,6 +22,18 @@ LOG_MODULE_REGISTER(sensors, LOG_LEVEL_INF);
 
 static const struct gpio_dt_spec estop = GPIO_DT_SPEC_GET(USER, estop_gpios);
 static const struct gpio_dt_spec pe = GPIO_DT_SPEC_GET(USER, pe_gpios);
+static struct gpio_callback estop_cb;
+
+/* E-stop contact opens -> cut the motor from the interrupt itself (T1 path).
+ * No debounce: a glitch only causes a latched safe stop, never a missed one.
+ * The 20 ms poll below still reads the level for the FSM and telemetry. */
+static void on_estop_edge(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
+{
+	ARG_UNUSED(dev);
+	ARG_UNUSED(cb);
+	ARG_UNUSED(pins);
+	safety_estop_isr(k_cycle_get_32());
+}
 
 #if DT_HAS_CHOSEN(eaa_sensor_i2c)
 static const struct device *const i2c = DEVICE_DT_GET(DT_CHOSEN(eaa_sensor_i2c));
@@ -44,6 +56,41 @@ bool sensors_estop_open_now(void)
 	/* Pin is active (logical 1) when the NC contact is open. Read errors count as open. */
 	return gpio_pin_get_dt(&estop) != 0;
 }
+
+#if defined(CONFIG_SOC_SERIES_RP2350)
+/* Bench test of the T1 path without touching the wiring: the RP2350 IO bank can
+ * override a pad's input (GPIOx_CTRL.INOVER), so the E-stop pin really reads
+ * "open" and the edge interrupt fires through the normal GPIO path. */
+#define IO_BANK0_CTRL(n) ((volatile uint32_t *)(0x40028000u + 8u * (n) + 4u))
+#define INOVER_SHIFT 16
+int sensors_estop_inject(bool open)
+{
+	bool active_low = (estop.dt_flags & GPIO_ACTIVE_LOW) != 0;
+	uint32_t ov = !open ? 0u : (active_low ? 2u : 3u); /* 2 = force low, 3 = force high */
+	volatile uint32_t *ctrl = IO_BANK0_CTRL(estop.pin);
+
+	*ctrl = (*ctrl & ~(3u << INOVER_SHIFT)) | (ov << INOVER_SHIFT);
+	return 0;
+}
+#elif defined(CONFIG_SOC_SERIES_STM32U5X)
+/* STM32U585 (UNO Q): no pad override, but the EXTI software-trigger register
+ * raises the same EXTI line, so the same ISR and T1 path run. The pin level
+ * itself still reads "closed"; the trip is latched by the ISR. */
+#include <soc.h>
+int sensors_estop_inject(bool open)
+{
+	if (open) {
+		EXTI->SWIER1 = BIT(estop.pin);
+	}
+	return 0;
+}
+#else
+int sensors_estop_inject(bool open)
+{
+	ARG_UNUSED(open);
+	return -ENOTSUP;
+}
+#endif
 
 void sensors_get(struct eaa_sensors *out)
 {
@@ -214,6 +261,9 @@ int sensors_init(void)
 	}
 	rc |= gpio_pin_configure_dt(&estop, GPIO_INPUT);
 	rc |= gpio_pin_configure_dt(&pe, GPIO_INPUT);
+	gpio_init_callback(&estop_cb, on_estop_edge, BIT(estop.pin));
+	rc |= gpio_add_callback_dt(&estop, &estop_cb);
+	rc |= gpio_pin_interrupt_configure_dt(&estop, GPIO_INT_EDGE_TO_ACTIVE);
 
 	if (IS_ENABLED(CONFIG_EAA_INA226) || IS_ENABLED(CONFIG_EAA_MLX90614)) {
 		if (i2c == NULL || !device_is_ready(i2c)) {

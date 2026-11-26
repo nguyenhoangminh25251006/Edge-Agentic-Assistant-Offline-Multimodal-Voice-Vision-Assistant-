@@ -1,10 +1,14 @@
-/* 200 Hz belt control loop (highest-priority cooperative thread, woken by a k_timer).
+/* Belt control loop, CONFIG_EAA_CONTROL_PERIOD_US (default 10 ms = 100 Hz; the
+ * derivation is in REPORT.md "Control loop rate"). Highest-priority cooperative
+ * thread, woken by a k_timer.
  *
- *  - hard stop (SAFE_STOP / E-stop pin open): PWM 0 and driver disabled in the same tick
+ *  - hard stop: safety trips and the E-stop interrupt already cut the driver
+ *    directly (motor_kill, T1 in microseconds); this loop keeps it off
+ *    (SAFE_STOP / E-stop pin open)
  *  - controlled stop (STOP, spoken "stop"): ramp the setpoint down, then disable
  *  - open loop (no encoder, CH-107): feed-forward pwm = offset + gain * setpoint
  *  - closed loop (encoder): feed-forward + PI on measured mm/s
- * It also measures its own period jitter for NFR-01 (<= 1 ms).
+ * It also measures its own period jitter for NFR-01 (<= 1 ms = 10 % of the period).
  */
 #include <zephyr/kernel.h>
 #include <zephyr/sys/atomic.h>
@@ -102,6 +106,7 @@ static void control_thread(void *a, void *b, void *c)
 		int32_t target_x1000 = (run && !hard) ? (int32_t)sp * 1000 : 0;
 
 		if (hard) {
+			motor_loop_saw_stop(); /* reference: old tick-based T1 */
 			cmd_x1000 = 0;
 			integ = 0;
 		} else if (cmd_x1000 < target_x1000) {

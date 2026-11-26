@@ -10,11 +10,12 @@ Mọi con số dưới đây là **số đo thật** trên Pico 2 hoặc trên P
 | Cụm từ | **"Hey Edgie"** (/heɪ ˈɛdʒi/, 3 âm tiết, từ chữ *Edge* của dự án) |
 | Kiến trúc | Wake word trên **MCU**, STT/SLM trên **MPU** — MCU nghe liên tục, Linux chỉ thức dậy sau `VOICE_EVENT WAKE` |
 | Model chốt | **DS-CNN-S int8** — 23.747 tham số, 2,66 M MAC, 44,9 KB flatbuffer, arena 23 KB |
-| Chạy trên Pico 2 | MFCC **0,44–0,55 ms / 20 ms**; inference **65 ms** (weights trong SRAM); chạy mỗi **200 ms** chỉ khi có tiếng nói |
-| Tải CPU | **2,7 %** khi im lặng (chỉ MFCC + VAD) · **~35 %** khi có người nói |
+| Chạy trên Pico 2 | MFCC **0,44–0,55 ms / 20 ms**; inference **65 ms** (weights trong SRAM); chạy mỗi **100 ms** chỉ khi có tiếng nói |
+| Độ trễ wake (từ lúc nói xong "Hey Edgie" tới khi MCU gửi WAKE) | **p50 80 ms · p90 233 ms** (trước: 222 / 336 ms) — ưu tiên số 1 của pipeline, §4.4 |
+| Tải CPU | **2,7 %** khi im lặng (chỉ MFCC + VAD) · **~68 %** khi có người nói (vẫn dưới các luồng an toàn) |
 | Port đúng | Output int8 trên MCU **trùng từng bit** với TFLite trên PC: **14/14** clip |
-| An toàn embedded | HIL **30/30** khi model chạy liên tục (VAD tắt = tải xấu nhất): jitter vòng 200 Hz **max 231 µs** (NFR-01 ≤ 1 ms), heartbeat timeout phát hiện sau 344 ms, telemetry 19,8 Hz |
-| Độ chính xác (giọng chưa thấy khi train) | per-clip: đúng **97,8 %**, bỏ sót 9,4 % · streaming 70 phút: bỏ sót **10,8 %**, báo nhầm **19,8 lần/giờ nói liên tục** (xem §4.3 — đây là điều kiện xấu nhất) · phòng yên tĩnh 30 phút: **0** báo nhầm |
+| An toàn embedded | HIL **30/30** khi model chạy liên tục (VAD tắt = tải xấu nhất): jitter vòng điều khiển 100 Hz **max 207 µs** (NFR-01 ≤ 1 ms), heartbeat timeout phát hiện sau 328 ms, telemetry 19,8 Hz |
+| Độ chính xác (giọng chưa thấy khi train) | per-clip: đúng **97,8 %**, bỏ sót 9,4 % · streaming 70 phút: bỏ sót **9,0 %**, báo nhầm **19,8 lần/giờ nói liên tục** (xem §4.3 — đây là điều kiện xấu nhất) · phòng yên tĩnh 30 phút: **0** báo nhầm |
 | Giới hạn lớn nhất | Model **chỉ train bằng giọng tổng hợp (TTS)**. Trước khi lên rig phải thu giọng thật của team (§7) |
 
 ## 2. Pipeline đề xuất (MCU luôn bật, Linux ngủ)
@@ -30,10 +31,10 @@ Mọi con số dưới đây là **số đo thật** trên Pico 2 hoặc trên P
                          ngưỡng +9 dB, giữ 1 s sau tiếng nói)
                          │ im lặng → dừng ở đây (model không chạy)
                          ▼ có tiếng nói
-                     [3] DS-CNN-S int8 trên cửa sổ 1 s           65 ms, mỗi 200 ms
+                     [3] DS-CNN-S int8 trên cửa sổ 1 s           65 ms, mỗi 100 ms
                          (TFLite Micro + CMSIS-NN)               ← chỉ khi có tiếng nói
                          ▼
-                     [4] trung bình 2 điểm gần nhất ≥ 80 %,
+                     [4] trung bình 2 điểm gần nhất ≥ 95 %,
                          rồi khoá 1,5 s (refractory)
                          ▼
    MCU: LED nghe GP15, cờ VOICE_ACTIVE, VOICE_EVENT WAKE (0x93, gửi lại tới khi EVENT_ACK)
@@ -117,8 +118,9 @@ Có giọng gần như không được nhận. Với người thật cũng sẽ 
 |---|---|---|---|
 | XS, 60 ms, 3 | 80 % | 20,4 % | 23,3 |
 | S, 100 ms, 3 | 80 % | 8,4 % | 16,4 |
-| **S, 200 ms, 2 (chốt)** | **80 %** | **10,8 %** | **19,8** |
+| S, 200 ms, 2 (chốt cũ) | 80 % | 10,8 % | 19,8 |
 | S, 200 ms, 2 | 90 % | 13,8 % | 13,8 |
+| **S, 100 ms, 2 (chốt mới, §4.4)** | **95 %** | **9,0 %** | **19,8** |
 
 **Phòng yên tĩnh** (30 phút, ~10 % thời gian có tiếng nói): 0 báo nhầm, model chạy ở 49 % số lần đến lượt (còn lại VAD bỏ qua).
 
@@ -126,6 +128,29 @@ Có giọng gần như không được nhận. Với người thật cũng sẽ 
 * Đây là 1 giờ **toàn tiếng nói**, phần lớn là "hey Eddie", "edgy"…, tức điều kiện xấu nhất có chủ đích.
 * Xưởng thật có ít tiếng nói hơn nhiều, nên con số thực tế sẽ thấp hơn. **Nhưng chưa đo với người thật nên không đưa ra con số thay thế.**
 * Một báo nhầm chỉ làm STT thức dậy (§2), không làm motor chạy.
+
+### 4.4 Độ trễ wake — tham số phải nhanh nhất
+Độ trễ = từ lúc kết thúc cụm "Hey Edgie" (đo trên clip sạch) tới lúc MCU gửi `VOICE_EVENT WAKE`, đã cộng thời gian inference đo trên Pico (S 65 ms, XS 24 ms). Cùng luồng thử 70 phút như §4.3.
+
+| Model, chu kỳ, làm mượt | ngưỡng | bỏ sót | báo nhầm / giờ | trễ p50 | trễ p90 | trễ max |
+|---|---|---|---|---|---|---|
+| S, 200 ms, 2 (chốt cũ) | 80 % | 10,8 % | 19,8 | 222 ms | 336 ms | 648 ms |
+| S, 100 ms, 3 | 80 % | 8,4 % | 16,4 | 161 ms | 260 ms | 473 ms |
+| S, 100 ms, 2 | 80 % | 6,6 % | 27,6 | 72 ms | 200 ms | 494 ms |
+| **S, 100 ms, 2 (chốt)** | **95 %** | **9,0 %** | **19,8** | **80 ms** | **233 ms** | **494 ms** |
+| S, 100 ms, 1 | 80 % | 2,4 % | 56,0 | −26 ms | 77 ms | 636 ms |
+| XS, 100 ms, 2 | 80 % | 21,0 % | 22,4 | 58 ms | 315 ms | 507 ms |
+| XS, 60 ms, 3 | 80 % | 20,4 % | 23,3 | 40 ms | 263 ms | 553 ms |
+
+Chọn **S, 100 ms, làm mượt 2, ngưỡng 95 %**:
+* Cùng mức báo nhầm với bản cũ (19,8 /giờ), bỏ sót ít hơn (9,0 % so với 10,8 %), và **nhanh hơn 142 ms ở p50, 103 ms ở p90**.
+* Trễ âm (dòng làm mượt 1) nghĩa là model bắn trước khi nói xong: nhanh nhưng báo nhầm gấp 3 lần, không dùng.
+* XS nhanh hơn ở p50 nhưng bỏ sót gấp đôi, nên không đổi model.
+* Không xuống dưới 80 ms (4 hop): một lần inference 65 ms cộng MFCC phải xong trước lần kế tiếp.
+* Giá phải trả: CPU khi có người nói tăng từ ~35 % lên ~68 %. Luồng voice ưu tiên thấp nhất, nên vòng motor, safety và link vẫn chạy trước (đo ở §5.5).
+* Trên rig, độ trễ tổng tới khi Linux có lệnh còn cộng thêm thời gian người nói câu lệnh và Vosk (CH-204); phần MCU là phần nhỏ nhất.
+
+Chạy lại: `python eval_stream.py --arch s --stride 5 --smooth 2 --tag _st5_sm2` (kết quả trong `artifacts/stream_*_st*_sm*.json`).
 
 ## 5. Benchmark trên Pico 2 thật
 
@@ -146,7 +171,7 @@ Lệnh trong shell (cổng console USB): `kws bench`, `kws stream`, `kws stats`,
 | **Build cuối, không khoá ngắt², SRAM** | **65,3 ms** | **24,1 ms** | 0,44 / 0,55 ms (min/avg) |
 
 ¹ đo khi ngắt đang chạy.
-² Các dòng trên được đo với ngắt bị khoá. Bản cuối **bỏ khoá ngắt** vì khoá ngắt 60 ms sẽ chặn vòng 200 Hz và watchdog trên rig thật. Số cuối vì thế đã gồm thời gian bị vòng điều khiển và các luồng khác chen vào, và dao động khoảng ±10 % giữa các lần build (xem 5.3).
+² Các dòng trên được đo với ngắt bị khoá. Bản cuối **bỏ khoá ngắt** vì khoá ngắt 60 ms sẽ chặn vòng điều khiển và watchdog trên rig thật. Số cuối vì thế đã gồm thời gian bị vòng điều khiển và các luồng khác chen vào, và dao động khoảng ±10 % giữa các lần build (xem 5.3).
 
 ### 5.3 Những gì phát hiện khi số đo "vô lý"
 1. **Zephyr v4.2 tắt DSP của RP2350.** Nó build với `-mcpu=cortex-m33+nodsp`, nên CMSIS-NN rơi về code C thường. RP2350 có DSP extension. Sửa: `CONFIG_EAA_RP2350_DSP` select `ARMV8_M_DSP`. STM32U585 thì SoC đã tự bật.
@@ -165,18 +190,19 @@ Lệnh trong shell (cổng console USB): `kws bench`, `kws stream`, `kws stats`,
 
 ### 5.4 Tải CPU và bộ nhớ (build cuối)
 * **Im lặng:** MFCC 0,55 ms mỗi 20 ms = **2,7 %**.
-* **Có người nói:** (65,3 + 10 × 0,55) ms mỗi 200 ms = **~35 %**. Luồng voice ưu tiên 8, thấp hơn control (coop), safety (1), bridge (3), sensors (4).
+* **Có người nói:** đo trên Pico khi VAD tắt và hệ thống đang chạy HIL: inference avg 64,0 ms, MFCC avg 0,76 ms → (64,0 + 5 × 0,76) ms mỗi 100 ms = **~68 %** (bản cũ 200 ms: ~35 %). Luồng voice ưu tiên 8, thấp hơn control (coop), safety (1), bridge (3), sensors (4).
 * **RAM:** 236 KB / 520 KB (gồm 48 KB bản copy model, 23 KB arena, 32 KB buffer cho bench).
 * **Flash:** 819 KB / 4 MB (gồm 448 KB clip bench). Tắt `CONFIG_EAA_KWS_BENCH` cho bản rig nếu cần.
 
-### 5.5 Thông số embedded không bị phá (HIL 30/30, `hil_test.py`, model chạy liên tục mỗi 200 ms, VAD tắt)
+### 5.5 Thông số embedded không bị phá (HIL 30/30, `hil_test.py`, model chạy liên tục mỗi 100 ms, VAD tắt, vòng điều khiển 100 Hz)
 | Thông số | Yêu cầu | Đo |
 |---|---|---|
-| Jitter vòng 200 Hz (NFR-01) | ≤ 1000 µs | **231 µs** max (exec 252 µs) qua 60 s, 21.745 vòng |
-| Heartbeat watchdog | 300 ms | phát hiện sau 344 ms (gồm trễ USB và chu kỳ 10 ms của safety thread) |
+| Jitter vòng điều khiển 100 Hz (NFR-01) | ≤ 1000 µs | **207 µs** max (exec 255 µs) qua 60 s, 9.543 vòng |
+| Heartbeat watchdog | 300 ms | phát hiện sau 328 ms (gồm trễ USB và chu kỳ 10 ms của safety thread) |
 | Telemetry | 20 Hz | 19,80 Hz, 0 frame lỗi |
-| Retransmit event | ~100 ms | 11 bản trong 1 s, khoảng cách trung vị 125 ms |
-| Lệnh RUN → ACK | — | 47 ms |
+| Retransmit event | ~100 ms | 11 bản trong 1 s, khoảng cách trung vị 117 ms |
+| Lệnh RUN → ACK | — | 62 ms |
+| Wake → VOICE_EVENT (lệnh `eaa wake`) | — | 62 ms |
 | Lúc quá tải (S chạy mỗi 60 ms = 111 % nhu cầu) | — | jitter vẫn 330 µs (vòng điều khiển là coop, ưu tiên cao nhất) |
 
 ## 6. Vì sao không suy ra số của UNO Q (STM32U585)

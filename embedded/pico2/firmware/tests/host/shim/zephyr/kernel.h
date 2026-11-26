@@ -37,6 +37,7 @@ static inline void k_spin_unlock(struct k_spinlock *l, k_spinlock_key_t k) { (vo
 extern int64_t shim_now_ms;
 static inline int64_t k_uptime_get(void) { return shim_now_ms; }
 static inline void k_sleep(int ms) { (void)ms; }
+static inline uint32_t k_cycle_get_32(void) { return (uint32_t)(shim_now_ms * 150000); }
 #define K_MSEC(x) (x)
 #define K_NO_WAIT 0
 #define K_PRIO_PREEMPT(x) (x)

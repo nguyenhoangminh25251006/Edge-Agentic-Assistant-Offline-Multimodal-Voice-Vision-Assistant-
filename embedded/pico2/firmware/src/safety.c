@@ -50,6 +50,7 @@ static int64_t last_hb_ms;
 static int64_t pe_blocked_since = -1;
 static int64_t overcurrent_since = -1;
 static bool estop_was_open;
+static bool estop_isr_tripped; /* E-stop trip already raised by the pin interrupt */
 static struct recent_cmd recent[RECENT_CMDS];
 static uint8_t recent_next;
 static struct eaa_sensors last_sens;
@@ -91,6 +92,7 @@ static void trip(uint8_t kind, uint8_t reason, int16_t obs, int16_t thr)
 {
 	bool first = !fault_latched;
 
+	motor_kill(k_cycle_get_32()); /* T1: cut now, not at the next control tick */
 	state = B03_ST_SAFE_STOP;
 	fault_latched = true;
 	if (first || fault_reason == B03_R_OK) {
@@ -312,6 +314,8 @@ uint8_t safety_handle_cmd(const struct b03_cmd *c, uint8_t *reason)
 				state = B03_ST_STOPPED;
 				fault_latched = false;
 				fault_reason = B03_R_OK;
+				estop_isr_tripped = false;
+				motor_unkill();
 				pe_blocked_since = -1;
 				overcurrent_since = -1;
 				queue_event(B03_EV_FAULT_CLEARED, B03_R_OK, 0, 0);
@@ -346,6 +350,18 @@ void safety_voice_stop(void)
 	k_spin_unlock(&lock, key);
 }
 
+void safety_estop_isr(uint32_t detect_cyc)
+{
+	motor_kill(detect_cyc); /* first, before anything else */
+	k_spinlock_key_t key = k_spin_lock(&lock);
+
+	if (!estop_isr_tripped && !estop_was_open) {
+		estop_isr_tripped = true;
+		trip(B03_EV_HARDWARE_ESTOP, B03_R_ESTOP_ACTIVE, 0, 1); /* event sent by the safety tick */
+	}
+	k_spin_unlock(&lock, key);
+}
+
 void safety_set_voice_active(bool active)
 {
 	k_spinlock_key_t key = k_spin_lock(&lock);
@@ -370,7 +386,10 @@ static void check_invariants(const struct eaa_sensors *s, int64_t now)
 
 	/* E-stop: any state */
 	if (s->estop_open && !estop_was_open) {
-		trip(B03_EV_HARDWARE_ESTOP, B03_R_ESTOP_ACTIVE, 0, 1);
+		if (!estop_isr_tripped) {
+			trip(B03_EV_HARDWARE_ESTOP, B03_R_ESTOP_ACTIVE, 0, 1);
+		}
+		estop_isr_tripped = false;
 	} else if (!s->estop_open && estop_was_open) {
 		queue_event(B03_EV_ESTOP_RELEASED, B03_R_OK, 1, 1);
 	}

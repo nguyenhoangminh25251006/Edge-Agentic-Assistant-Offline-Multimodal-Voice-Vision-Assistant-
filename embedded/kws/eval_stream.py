@@ -25,6 +25,14 @@ from train import ART, Aug, Int8Model
 HOP, NF = fe.HOP, fe.NFRAMES
 
 
+def word_end(y, hop=HOP):
+    """Sample index where the spoken phrase ends: last 20 ms frame within
+    30 dB of the loudest frame (the clip itself has trailing silence)."""
+    n = len(y) // hop
+    e = 10 * np.log10((y[:n * hop].reshape(n, hop).astype(np.float64) ** 2).mean(1) + 1e-3)
+    return int((np.nonzero(e > e.max() - 30)[0][-1] + 1) * hop)
+
+
 def build_stream(rng, aug, with_wake, quiet_ratio=0.0, minutes=None):
     """Concatenate held-out clips with random gaps over factory noise.
     Returns int16 pcm and a list of (start, end) sample spans of wake words."""
@@ -37,13 +45,22 @@ def build_stream(rng, aug, with_wake, quiet_ratio=0.0, minutes=None):
     if minutes:
         clips = clips[:int(minutes * 60 / (1.0 + 0.6 + quiet_ratio * 10))]
     parts, spans, pos_s = [], [], 0
+    clean = {}
+    if not getattr(aug, "_rec", False):  # remember the shifted clean clip for word_end()
+        orig = aug.shift
+
+        def rec_shift(x, max_s=0.15):
+            clean["y"] = orig(x, max_s)
+            return clean["y"]
+        aug.shift, aug._rec, aug._clean = rec_shift, True, clean
+    clean = aug._clean
     for f, is_wake in clips:
         x = read_wav(f)
         gap = int(rng.uniform(0.3, 0.9) * SR + quiet_ratio * rng.uniform(5, 15) * SR)
         g = aug(np.zeros(gap), speech=False).astype(np.float32) * 0.3
         y = aug(x).astype(np.float32)
         if is_wake:
-            spans.append((pos_s + gap, pos_s + gap + len(y)))
+            spans.append((pos_s + gap, pos_s + gap + len(y), pos_s + gap + word_end(clean["y"])))
         parts += [g, y]
         pos_s += gap + len(y)
     pcm = np.clip(np.concatenate(parts), -32768, 32767).astype(np.int16)
@@ -92,15 +109,16 @@ def run_pipeline(pcm, m8, thr, stride, smooth, vad_db=9.0, vad=True):
 
 
 def score_stream(dets, spans, tol=int(0.8 * SR)):
-    hit = [False] * len(spans)
+    hit = [None] * len(spans)
     fa = 0
     for t, _ in dets:
-        k = next((i for i, (a, b) in enumerate(spans) if a <= t <= b + tol), None)
+        k = next((i for i, (a, b, _) in enumerate(spans) if a <= t <= b + tol), None)
         if k is None:
             fa += 1
-        else:
-            hit[k] = True
-    return sum(hit), fa
+        elif hit[k] is None:
+            hit[k] = (t - spans[k][2]) / SR  # s after the phrase ended (MFCC/model side)
+    lat = [h for h in hit if h is not None]
+    return len(lat), fa, lat
 
 
 def main():
@@ -109,7 +127,11 @@ def main():
     ap.add_argument("--thr", type=int, default=80)
     ap.add_argument("--stride", type=int, default=3)
     ap.add_argument("--smooth", type=int, default=3)
+    ap.add_argument("--infer-ms", type=float, default=None,
+                    help="MCU inference time added to the latency (default: measured S 65, XS 24)")
+    ap.add_argument("--tag", default="")
     a = ap.parse_args()
+    infer = a.infer_ms if a.infer_ms is not None else {"s": 65.3, "xs": 24.1}.get(a.arch, 0.0)
     m8 = Int8Model((ART / f"kws_{a.arch}.tflite").read_bytes())
     rng = np.random.default_rng(11)
     aug = Aug(np.random.default_rng(5))
@@ -122,9 +144,13 @@ def main():
     # one pass with threshold 0 to log scores, then sweep thresholds offline
     for thr in [50, 60, 70, 80, 90, 95]:
         dets, runs, gated, _ = run_pipeline(pcm, m8, thr, a.stride, a.smooth)
-        hits, fa = score_stream(dets, spans)
+        hits, fa, lat = score_stream(dets, spans)
+        lat_ms = np.array(lat) * 1000 + infer  # WAKE leaves the MCU after the inference
         res["sweep"].append({"thr": thr, "detected": hits, "frr": round(1 - hits / len(spans), 4),
-                             "false_wakes": fa, "fa_per_hour": round(fa / hours, 2)})
+                             "false_wakes": fa, "fa_per_hour": round(fa / hours, 2),
+                             "latency_ms_p50": round(float(np.percentile(lat_ms, 50)), 0) if lat else None,
+                             "latency_ms_p90": round(float(np.percentile(lat_ms, 90)), 0) if lat else None,
+                             "latency_ms_max": round(float(lat_ms.max()), 0) if lat else None})
         print(res["sweep"][-1])
     # 2) quiet room: 10 % speech -> how often does the model run at all?
     pcm_q, _ = build_stream(np.random.default_rng(12), aug, with_wake=False,
@@ -134,7 +160,7 @@ def main():
                          "vad_skipped": gated, "run_fraction": round(runs / max(1, runs + gated), 3),
                          "false_wakes": len(dets)}
     print(res["quiet_room"])
-    (ART / f"stream_{a.arch}.json").write_text(json.dumps(res, indent=1))
+    (ART / f"stream_{a.arch}{a.tag}.json").write_text(json.dumps(res, indent=1))
 
 
 if __name__ == "__main__":

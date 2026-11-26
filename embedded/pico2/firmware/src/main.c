@@ -116,6 +116,11 @@ static int cmd_status(const struct shell *sh, size_t argc, char **argv)
 		    x.bus_mv, temp, x.status);
 	shell_print(sh, "control loops %u, jitter max %u us, exec max %u us", c.loops,
 		    c.jitter_max_us, c.exec_max_us);
+	struct eaa_t1_stats t;
+
+	motor_get_t1(&t, false);
+	shell_print(sh, "T1 stops %u, direct last %u max %u us, control-tick path last %u max %u us",
+		    t.count, t.last_us, t.max_us, t.loop_last_us, t.loop_max_us);
 	shell_print(sh, "link %s rx %u bad_crc %u bad_cobs %u tx %u retx %u pending %u",
 		    b.synced ? "synced" : "no HELLO yet", b.rx_frames, b.rx_bad_crc, b.rx_bad_cobs,
 		    b.tx_frames, b.retx, b.events_pending);
@@ -138,6 +143,28 @@ static int cmd_wdtest(const struct shell *sh, size_t argc, char **argv)
 	return 0;
 }
 
+/* eaa t1test: force the E-stop input "open" for 50 ms through the pad override,
+ * then release it. The motor must be cut by the interrupt (T1 direct) and the
+ * fault stays latched until 'eaa clear'. */
+static int cmd_t1test(const struct shell *sh, size_t argc, char **argv)
+{
+	ARG_UNUSED(argc);
+	ARG_UNUSED(argv);
+	if (sensors_estop_inject(true) != 0) {
+		shell_error(sh, "not supported on this board");
+		return -ENOTSUP;
+	}
+	k_msleep(50);
+	sensors_estop_inject(false);
+	k_msleep(30);
+	struct eaa_t1_stats t;
+
+	motor_get_t1(&t, false);
+	shell_print(sh, "T1 direct %u us (max %u), control-tick path %u us (max %u), stops %u",
+		    t.last_us, t.max_us, t.loop_last_us, t.loop_max_us, t.count);
+	return 0;
+}
+
 static int cmd_jitter_reset(const struct shell *sh, size_t argc, char **argv)
 {
 	struct eaa_control_stats c;
@@ -145,6 +172,11 @@ static int cmd_jitter_reset(const struct shell *sh, size_t argc, char **argv)
 	ARG_UNUSED(argc);
 	ARG_UNUSED(argv);
 	control_get_stats(&c, true);
+	{
+		struct eaa_t1_stats t;
+
+		motor_get_t1(&t, true);
+	}
 	shell_print(sh, "jitter stats reset");
 	return 0;
 }
@@ -236,6 +268,7 @@ SHELL_STATIC_SUBCMD_SET_CREATE(eaa_cmds,
 #endif
 	SHELL_CMD(status, NULL, "State, sensors, loop jitter, link counters", cmd_status),
 	SHELL_CMD(jreset, NULL, "Reset jitter statistics", cmd_jitter_reset),
+	SHELL_CMD(t1test, NULL, "Simulate an E-stop edge (pad override), report T1", cmd_t1test),
 	SHELL_CMD(wdtest, NULL, "Hang the firmware on purpose (watchdog reset test)", cmd_wdtest),
 	SHELL_CMD_ARG(run, NULL, "run [mm/s]  (bench only: needs 'eaa hb' within 300 ms)",
 		      cmd_run, 1, 1),

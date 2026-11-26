@@ -18,7 +18,7 @@ Pi 3B (Linux)                                    Pico 2 (Zephyr)
  orchestrator FSM + Arbiter                        safety FSM (BOOT/STOPPED/RUNNING/SAFE_STOP)
  McuBridgeWorker  ──UART0 115200, COBS+B-03──▶     bridge thread
  STT container   ◀──USB CDC (audio 16k/16bit)──    mic + wake word (KWS)
-                                                   200 Hz control loop ─▶ BTS7960 ─▶ motor 24 V
+                                                   100 Hz control loop ─▶ BTS7960 ─▶ motor 24 V
                                                    INA226, MLX90614 (I2C), E18 PE, E-stop aux, encoder
 ```
 
@@ -145,7 +145,7 @@ embedded/pico2/firmware/
 Thread / ưu tiên (Zephyr: số nhỏ = ưu tiên cao):
 | Thread | Chu kỳ | Prio | Việc |
 |---|---|---|---|
-| `control` | 5 ms (200 Hz, `k_timer`) | cao nhất (coop) | đọc encoder, PI speed loop, ghi PWM, kiểm invariant nhanh (E-stop, overcurrent) |
+| `control` | 10 ms (100 Hz, `k_timer`) | cao nhất (coop) | ramp setpoint, ghi PWM (open-loop). Cắt motor khi có sự cố **không** chờ vòng này: ngắt E-stop và safety trip cắt EN trực tiếp (REPORT.md §6.1–6.2) |
 | `safety` | event + 10 ms | cao | FSM, latch fault, HB watchdog 300 ms, task watchdog phần cứng RP2350 |
 | `sensors` | 20–50 ms | trung | INA226, MLX90614 (I2C chậm, **không** chạy trong control loop) |
 | `bridge` | event-driven | trung | COBS RX/TX, CMD_ACK, telemetry 20 Hz, retransmit |
@@ -188,7 +188,7 @@ M0 = CH-237 · M1 = CH-238 · M2 = CH-239 · M3 = CH-240 · M4 = CH-241 · M5 = 
 - Thay mock bằng FSM: E-stop, jam (PE bị chặn quá X ms khi RUNNING), overcurrent > 2500 mA, overtemp > 80 °C, link timeout, sensor loss (I2C NACK).
 - ✅ Xong khi: bộ fault-injection pass (rút sensor, giữ E-stop, chặn PE, kill orchestrator) — mỗi case → SAFE_STOP + đúng event + đúng reason.
 
-### M5 — Speed control 200 Hz (2–4 ngày, encoder bị chặn bởi CH-107)
+### M5 — Speed control 100 Hz, open-loop (encoder không thuộc phase này, CH-107; lý do bỏ 200 Hz: REPORT.md §6.1)
 - Có encoder: PIO quadrature + PI loop, đo jitter bằng GPIO toggle + logic analyzer.
 - Chưa có encoder: open-loop setpoint → PWM theo bảng hiệu chuẩn (đo mm/s bằng tay), `speed_mms` = ước lượng, ghi rõ trong report.
 - ✅ Xong khi: jitter control loop ≤ 1 ms (NFR-01).

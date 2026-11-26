@@ -15,6 +15,9 @@ static int fails;
 /* --- stubs of the other modules --- */
 void sensors_get(struct eaa_sensors *out) { *out = fake; }
 uint16_t control_speed_mms(void) { return 0; }
+static int kills;
+void motor_kill(uint32_t c) { (void)c; kills++; }
+void motor_unkill(void) { }
 void bridge_emit_event(uint8_t kind, uint8_t reason, int16_t o, int16_t t)
 {
 	(void)o; (void)t;

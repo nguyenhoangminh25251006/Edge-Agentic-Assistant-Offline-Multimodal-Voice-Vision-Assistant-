@@ -42,9 +42,18 @@ menu "Motor and limits"
 
 config EAA_CONTROL_PERIOD_US
 	int "Control loop period (us)"
-	default 5000
+	default 10000
 	help
-	  5000 us = 200 Hz (NFR-01: jitter must stay at 1 ms or less).
+	  10000 us = 100 Hz. Chosen from the belt, not from the stop path:
+	  - this phase is open loop (no encoder): the loop only ramps the setpoint
+	    (250 mm/s per s -> 2.5 mm/s per tick, smooth) and keeps the driver
+	    off in SAFE_STOP; a geared 24 V belt responds in tens of ms, so
+	    100 Hz is >= 3x faster than anything the belt can follow;
+	  - the hard stop (T1) does not wait for this loop: safety trips and the
+	    E-stop interrupt cut the driver directly (motor_kill).
+	  NFR-01 jitter <= 1 ms is 10 % of this period. Derivation and the
+	  numbers to re-check once the belt is measured: REPORT.md section
+	  "Control loop rate". 5000 (200 Hz) still builds and passes the tests.
 
 config EAA_PWM_PERIOD_NS
 	int "Motor PWM period (ns)"
@@ -222,12 +231,18 @@ endchoice
 
 config EAA_KWS_STRIDE_HOPS
 	int "Run the model every N hops of 20 ms"
-	default 10
-	range 1 12
+	default 5
+	range 4 12
 	help
-	  Measured on the Pico 2: DS-CNN-S takes ~65 ms per run, so 10 hops
-	  (200 ms) costs ~33 % of the core while someone speaks (0 % in silence,
-	  the VAD gate stops it), leaving room for the motor loop and the link.
+	  Wake latency is the priority. Measured on the Pico 2: DS-CNN-S takes
+	  ~65 ms per run, so 5 hops (100 ms) uses ~65 % of the core while someone
+	  speaks (0 % in silence, the VAD gate stops it). The motor loop and the
+	  safety/link threads have higher priority, so they are not delayed.
+	  Stream test (kws/eval_stream.py, held-out voices), with threshold 95:
+	  wake latency after the phrase p50 80 ms / p90 233 ms, FRR 9.0 %,
+	  19.8 false wakes/h of non-stop speech. The old 10 hops + threshold 80:
+	  p50 222 / p90 336 ms, FRR 10.8 %, 19.8 /h. Below 4 hops the 65 ms model
+	  would not fit between runs.
 
 config EAA_KWS_SMOOTH
 	int "Average of the last N model scores"
@@ -280,6 +295,7 @@ config EAA_RP2350_DSP
 
 config EAA_KWS_THRESHOLD_PCT
 	int "Keyword confidence needed to act (%)"
+	default 95 if EAA_KWS_TFLM
 	default 80
 	depends on EAA_VOICE || EAA_KWS_TFLM
 

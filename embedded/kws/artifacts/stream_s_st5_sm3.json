@@ -10,42 +10,60 @@
    "detected": 163,
    "frr": 0.024,
    "false_wakes": 42,
-   "fa_per_hour": 36.18
+   "fa_per_hour": 36.18,
+   "latency_ms_p50": 68.0,
+   "latency_ms_p90": 221.0,
+   "latency_ms_max": 736.0
   },
   {
    "thr": 60,
    "detected": 161,
    "frr": 0.0359,
    "false_wakes": 35,
-   "fa_per_hour": 30.15
+   "fa_per_hour": 30.15,
+   "latency_ms_p50": 75.0,
+   "latency_ms_p90": 203.0,
+   "latency_ms_max": 736.0
   },
   {
    "thr": 70,
    "detected": 156,
    "frr": 0.0659,
    "false_wakes": 24,
-   "fa_per_hour": 20.68
+   "fa_per_hour": 20.68,
+   "latency_ms_p50": 150.0,
+   "latency_ms_p90": 266.0,
+   "latency_ms_max": 594.0
   },
   {
    "thr": 80,
    "detected": 153,
    "frr": 0.0838,
    "false_wakes": 19,
-   "fa_per_hour": 16.37
+   "fa_per_hour": 16.37,
+   "latency_ms_p50": 161.0,
+   "latency_ms_p90": 260.0,
+   "latency_ms_max": 473.0
   },
   {
    "thr": 90,
    "detected": 148,
    "frr": 0.1138,
    "false_wakes": 16,
-   "fa_per_hour": 13.78
+   "fa_per_hour": 13.78,
+   "latency_ms_p50": 170.0,
+   "latency_ms_p90": 274.0,
+   "latency_ms_max": 548.0
   },
   {
    "thr": 95,
    "detected": 145,
    "frr": 0.1317,
    "false_wakes": 13,
-   "fa_per_hour": 11.2
+   "fa_per_hour": 11.2,
+   "latency_ms_p50": 174.0,
+   "latency_ms_p90": 301.0,
+   "latency_ms_max": 548.0
   }
  ],
  "quiet_room": {
