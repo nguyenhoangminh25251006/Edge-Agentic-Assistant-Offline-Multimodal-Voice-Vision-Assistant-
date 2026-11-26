@@ -71,6 +71,8 @@ Cùng file đó được build thành DLL cho Python (`kws/fe.py`), nên model �
 Lượng tử hoá full-int8 (input/output int8), batch cố định 1. Batch động sinh op `SHAPE/PACK/STRIDED_SLICE` mà TFLM không có: đã gặp và sửa. `train.py` giờ chặn build nếu model dùng op chưa đăng ký.
 
 ### 3.4 So sánh 6 model tiny KWS (cùng dữ liệu, cùng MFCC, cùng int8, đo trên Pico 2)
+Proposal trên Jira: **CH-246**.
+
 Trước đây chỉ so DS-CNN-S với XS (cùng họ), chưa đủ để chọn. Bảng này thêm 4 kiến trúc tiny KWS hay dùng trên MCU:
 * **Edge Impulse 1-D conv:** kiến trúc mặc định của Edge Impulse, đúng phương án CH-103 định dùng ban đầu.
 * **TFLM `tiny_conv`:** model mẫu micro_speech của TensorFlow Lite Micro.
