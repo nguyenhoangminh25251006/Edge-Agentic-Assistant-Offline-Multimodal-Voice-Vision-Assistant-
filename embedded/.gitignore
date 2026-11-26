@@ -4,3 +4,5 @@ captures/
 kws/build/
 kws/artifacts/*.npz
 kws/artifacts/*.keras
+kws/artifacts/*.weights.h5
+kws/artifacts/trial_*

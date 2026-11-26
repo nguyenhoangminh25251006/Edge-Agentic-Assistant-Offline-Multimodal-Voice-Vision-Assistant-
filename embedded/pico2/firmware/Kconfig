@@ -259,7 +259,11 @@ config EAA_KWS_ARENA_KB
 
 config EAA_KWS_MODEL_RAM_KB
 	int "Copy the live model to SRAM (KiB buffer, 0 = run from flash)"
+	default 80 if EAA_KWS_BENCH
 	default 48
+	help
+	  48 KiB fits DS-CNN-S (44.9 KB). The bench build uses 80 KiB so the
+	  bigger comparison models (CNN-S, TC-ResNet8) also run from SRAM.
 
 config EAA_KWS_CODE_IN_RAM
 	bool "Run the MFCC, CMSIS-DSP and CMSIS-NN code from SRAM"

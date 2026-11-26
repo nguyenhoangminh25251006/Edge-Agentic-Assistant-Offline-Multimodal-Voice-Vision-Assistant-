@@ -12,7 +12,7 @@ namespace {
 constexpr size_t kArenaSize = CONFIG_EAA_KWS_ARENA_KB * 1024;
 alignas(16) uint8_t arena[kArenaSize];
 alignas(tflite::MicroInterpreter) uint8_t interp_mem[sizeof(tflite::MicroInterpreter)];
-tflite::MicroMutableOpResolver<6> resolver;
+tflite::MicroMutableOpResolver<8> resolver;
 tflite::MicroInterpreter *interp;
 const kws_model_info *cur;
 bool ops_added;
@@ -25,6 +25,8 @@ static int init_locked(const struct kws_model_info *m)
 		resolver.AddConv2D();
 		resolver.AddDepthwiseConv2D();
 		resolver.AddAveragePool2D();
+		resolver.AddMaxPool2D(); /* comparison models (Edge Impulse 1-D conv) */
+		resolver.AddAdd();       /* comparison models (TC-ResNet residuals) */
 		resolver.AddReshape();
 		resolver.AddFullyConnected();
 		resolver.AddSoftmax();

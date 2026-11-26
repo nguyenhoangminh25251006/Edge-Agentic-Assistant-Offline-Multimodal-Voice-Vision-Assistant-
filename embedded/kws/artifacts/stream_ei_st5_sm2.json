@@ -1,0 +1,76 @@
+{
+ "arch": "ei",
+ "stride": 5,
+ "smooth": 2,
+ "mixed_stream_minutes": 69.6,
+ "n_wake": 167,
+ "sweep": [
+  {
+   "thr": 50,
+   "detected": 162,
+   "frr": 0.0299,
+   "false_wakes": 279,
+   "fa_per_hour": 240.35,
+   "latency_ms_p50": -43.0,
+   "latency_ms_p90": 198.0,
+   "latency_ms_max": 717.0
+  },
+  {
+   "thr": 60,
+   "detected": 156,
+   "frr": 0.0659,
+   "false_wakes": 171,
+   "fa_per_hour": 147.31,
+   "latency_ms_p50": 3.0,
+   "latency_ms_p90": 247.0,
+   "latency_ms_max": 745.0
+  },
+  {
+   "thr": 70,
+   "detected": 147,
+   "frr": 0.1198,
+   "false_wakes": 111,
+   "fa_per_hour": 95.62,
+   "latency_ms_p50": 17.0,
+   "latency_ms_p90": 228.0,
+   "latency_ms_max": 845.0
+  },
+  {
+   "thr": 80,
+   "detected": 123,
+   "frr": 0.2635,
+   "false_wakes": 60,
+   "fa_per_hour": 51.69,
+   "latency_ms_p50": 35.0,
+   "latency_ms_p90": 250.0,
+   "latency_ms_max": 720.0
+  },
+  {
+   "thr": 90,
+   "detected": 92,
+   "frr": 0.4491,
+   "false_wakes": 29,
+   "fa_per_hour": 24.98,
+   "latency_ms_p50": 72.0,
+   "latency_ms_p90": 283.0,
+   "latency_ms_max": 633.0
+  },
+  {
+   "thr": 95,
+   "detected": 49,
+   "frr": 0.7066,
+   "false_wakes": 10,
+   "fa_per_hour": 8.61,
+   "latency_ms_p50": 72.0,
+   "latency_ms_p90": 330.0,
+   "latency_ms_max": 450.0
+  }
+ ],
+ "quiet_room": {
+  "minutes": 29.2,
+  "model_runs": 8541,
+  "vad_skipped": 8976,
+  "run_fraction": 0.488,
+  "false_wakes": 3
+ }
+}

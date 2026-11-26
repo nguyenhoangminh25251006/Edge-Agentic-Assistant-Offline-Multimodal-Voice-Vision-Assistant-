@@ -27,12 +27,19 @@ struct kws_model_info {
 extern const struct kws_model_info kws_model_s_info;  /* DS-CNN-S, 64 ch x 4 blocks */
 extern const struct kws_model_info kws_model_xs_info; /* DS-CNN-XS, 32 ch x 3 blocks */
 
+/* Comparison set for 'kws bench' (CONFIG_EAA_KWS_BENCH), same data and MFCC. */
+#define KWS_BENCH_NMODELS 6 /* order of kws_bench_models[] and expected[][] */
+extern const struct kws_model_info kws_model_ei_info;     /* Edge Impulse 1-D conv */
+extern const struct kws_model_info kws_model_tiny_info;   /* TFLM micro_speech tiny_conv */
+extern const struct kws_model_info kws_model_cnn_info;    /* Hello Edge CNN-S style */
+extern const struct kws_model_info kws_model_tcres8_info; /* TC-ResNet8 */
+extern const struct kws_model_info *const kws_bench_models[KWS_BENCH_NMODELS];
+
 struct kws_bench_clip {
 	const char *name;
-	uint8_t label;          /* KWS_CLASS_* ground truth */
-	const int16_t *pcm;     /* 16000 samples */
-	int8_t expected_s[3];   /* host TFLite int8 output, DS-CNN-S */
-	int8_t expected_xs[3];  /* host TFLite int8 output, DS-CNN-XS */
+	uint8_t label;      /* KWS_CLASS_* ground truth */
+	const int16_t *pcm; /* 16000 samples */
+	int8_t expected[KWS_BENCH_NMODELS][3]; /* host TFLite int8 output per model */
 };
 
 extern const struct kws_bench_clip kws_bench_clips[];

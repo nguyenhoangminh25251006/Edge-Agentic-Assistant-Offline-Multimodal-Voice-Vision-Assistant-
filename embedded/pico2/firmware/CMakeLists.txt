@@ -73,6 +73,8 @@ if(CONFIG_EAA_KWS_TFLM)
                          LOCATION RAM_TEXT)
   endif()
   if(CONFIG_EAA_KWS_BENCH)
-    target_sources(app PRIVATE src/voice/kws_bench.c src/voice/model/kws_bench_clips.cc)
+    target_sources(app PRIVATE src/voice/kws_bench.c src/voice/model/kws_bench_clips.cc
+        src/voice/model/kws_ei.cc src/voice/model/kws_tiny.cc
+        src/voice/model/kws_cnn.cc src/voice/model/kws_tcres8.cc)
   endif()
 endif()

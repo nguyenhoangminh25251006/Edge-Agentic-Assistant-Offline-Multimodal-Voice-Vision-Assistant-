@@ -60,7 +60,7 @@ Vì sao chia như vậy:
 
 Cùng file đó được build thành DLL cho Python (`kws/fe.py`), nên model được train trên **đúng** đặc trưng MCU tính. Kiểm tra với numpy: sai số tối đa 1,9·10⁻⁶.
 
-### 3.2 Hai kiến trúc thử
+### 3.2 Hai biến thể DS-CNN (so với 4 kiến trúc khác ở §3.4)
 | | DS-CNN-S | DS-CNN-XS |
 |---|---|---|
 | Cấu trúc | conv 10×4/2, 64 kênh + 4 khối DW-sep | conv 10×4/2, 32 kênh + 3 khối |
@@ -69,6 +69,65 @@ Cùng file đó được build thành DLL cho Python (`kws/fe.py`), nên model �
 | Thời gian train (CPU i5-7500T) | ~43 phút | ~5 phút |
 
 Lượng tử hoá full-int8 (input/output int8), batch cố định 1. Batch động sinh op `SHAPE/PACK/STRIDED_SLICE` mà TFLM không có: đã gặp và sửa. `train.py` giờ chặn build nếu model dùng op chưa đăng ký.
+
+### 3.4 So sánh 6 model tiny KWS (cùng dữ liệu, cùng MFCC, cùng int8, đo trên Pico 2)
+Trước đây chỉ so DS-CNN-S với XS (cùng họ), chưa đủ để chọn. Bảng này thêm 4 kiến trúc tiny KWS hay dùng trên MCU:
+* **Edge Impulse 1-D conv:** kiến trúc mặc định của Edge Impulse, đúng phương án CH-103 định dùng ban đầu.
+* **TFLM `tiny_conv`:** model mẫu micro_speech của TensorFlow Lite Micro.
+* **CNN-S:** kiểu Hello Edge, CNN thường, không có khối depthwise.
+* **TC-ResNet8:** conv theo trục thời gian, có nhánh tắt (residual).
+
+Cả 6 model cùng 30 epoch, cùng tập train/test (test = giọng chưa thấy khi train), cùng pipeline trên MCU. Thời gian inference đo bằng `kws bench`, weights trong SRAM, ngắt vẫn chạy.
+
+**a) Kích thước và tốc độ trên Pico 2 (Cortex-M33 150 MHz)**
+
+| Model | Tham số | MAC | Flash int8 | Arena | Inference | CPU khi có tiếng nói (chạy mỗi 100 ms) | Trùng output với PC |
+|---|---|---|---|---|---|---|---|
+| Edge Impulse 1-D conv | 1.275 | 22 k | 5,4 KB | 2,8 KB | **2,4 ms** | 4,8 % | 14/14 |
+| TFLM tiny_conv | 3.651 | 83 k | 6,2 KB | 3,0 KB | 5,3 ms | 7,7 % | 14/14 |
+| DS-CNN-XS | 6.211 | 652 k | 17,7 KB | 11,8 KB | 22,9 ms | 25,3 % | 12/14 (lệch ≤ 3 LSB) |
+| TC-ResNet8 | 63.891 | 722 k | 79,5 KB | 8,6 KB | 17,9 ms | 20,3 % | 13/14 (lệch ≤ 2 LSB) |
+| CNN-S | 68.731 | 2,36 M | 77,4 KB | 13,0 KB | 38,9 ms | 41,3 % | 14/14 |
+| **DS-CNN-S (đang dùng)** | 23.747 | 2,66 M | 44,9 KB | 23,0 KB | 62,1 ms | 64,5 % | 14/14 |
+
+Cùng DS-CNN-S nhưng weights trong flash XIP: 71,5 ms (chậm hơn 15 %).
+
+**b) Độ chính xác**
+
+* Per-clip: ngưỡng 0,8, 2.619 clip test.
+* Streaming: luồng 70 phút nói liên tục, 167 lần "Hey Edgie".
+  * Mỗi model lấy điểm vận hành có báo nhầm gần 20 lần/giờ nhất (mốc của bản đang dùng).
+  * Độ trễ tính từ lúc nói xong cụm từ tới khi gửi WAKE, đã cộng inference đo trên Pico.
+
+| Model | Per-clip: đúng / bỏ sót | Streaming (chạy mỗi 100 ms): làm mượt, ngưỡng | Bỏ sót | Báo nhầm/giờ | Trễ p50 | Trễ p90 |
+|---|---|---|---|---|---|---|
+| Edge Impulse 1-D conv | 91,5 % / 40,1 % | 2, 90 % | 44,9 % | 25,0 | 74 ms | 285 ms |
+| TFLM tiny_conv | 94,8 % / 28,4 % | 2, 95 % | 40,7 % | 12,1 | 79 ms | 314 ms |
+| DS-CNN-XS | 95,5 % / 22,5 % | 2, 90 % | 24,6 % | 16,4 | 57 ms | 270 ms |
+| CNN-S | 98,2 % / 7,2 % | 2, 99 % | 12,6 % | 19,0 | 55 ms | 209 ms |
+| TC-ResNet8 | **98,5 % / 5,1 %** | 2, 99 % | 7,8 % | 27,6 | 20 ms | 120 ms |
+| TC-ResNet8 | | **3, 90 %** | **8,4 %** | **18,1** | 109 ms | **203 ms** |
+| **DS-CNN-S (đang dùng)** | 97,8 % / 9,4 % | **2, 95 %** | 9,0 % | 19,8 | **77 ms** | 230 ms |
+
+Cách đọc cho đúng:
+* Độ phân giải của phép thử: 1 clip bỏ sót = 0,6 %, 1 lần báo nhầm = 0,86 /giờ. Chênh dưới khoảng 2 % hoặc 3 /giờ coi như **ngang nhau**.
+* **Edge Impulse 1-D conv và tiny_conv quá nhỏ cho cụm 3 âm tiết đứng giữa các từ dễ nhầm:** bỏ sót trên 40 %. Đây là lý do không dùng phương án Edge Impulse mặc định.
+* **DS-CNN-XS:** nhanh, nhưng bỏ sót gấp gần 3 lần.
+* **CNN-S:** chính xác per-clip nhưng bỏ sót 12,6 % khi giữ báo nhầm ≈ 20 /giờ, và nặng gần bằng S.
+* **TC-ResNet8 tốt nhất per-clip nhưng "bắn sớm" ngay khi nghe "Hey Ed…":**
+  * Làm mượt 2 điểm thì báo nhầm không xuống dưới 27 /giờ, dù đặt ngưỡng 99 %.
+  * Làm mượt 3 điểm thì ngang DS-CNN-S về độ chính xác, chậm hơn 32 ms ở p50 nhưng nhanh hơn 27 ms ở p90, và **chỉ tốn 20 % CPU (S: 64 %)**.
+  * Model lớn hơn: 79,5 KB flash, cần bộ đệm SRAM 80 KB.
+
+**Kết luận:**
+* **Giữ DS-CNN-S.** Với giọng tổng hợp, S và TC-ResNet8 ngang nhau về độ chính xác. S có trễ p50 thấp nhất trong các model đủ chính xác, mà độ trễ wake là ưu tiên số 1. S cũng là model đã qua HIL 30/30 và trùng output 14/14.
+* **TC-ResNet8 là ứng viên số 2, quyết lại khi có giọng thật** (§7). Nếu với giọng thật nó vẫn ngang S thì nên đổi sang, vì tiết kiệm khoảng 45 % CPU.
+* Đổi model chỉ cần train lại và sửa `kws_selected_model()`. Model đã có sẵn trong bản bench.
+
+Chạy lại:
+* Train: `python train.py --arch {s,xs,ei,tiny,cnn,tcres8}`. Từ giờ chạy bằng `.venv-gpu` (GTX 1060, TF 2.10), không dùng CPU.
+* Streaming: `python eval_stream.py --arch tcres8 --stride 5 --smooth 3 --infer-ms 0 --tag _cmp`.
+* Trên Pico: `kws bench` (thêm `v` để in từng clip).
 
 ### 3.3 Dữ liệu
 | Tập | wake | không phải wake |

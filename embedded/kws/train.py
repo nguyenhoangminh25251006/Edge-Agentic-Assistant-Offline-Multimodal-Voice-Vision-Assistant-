@@ -2,6 +2,11 @@
 
   python train.py --arch s     # DS-CNN-S  (64 channels, 4 DS blocks) - accuracy
   python train.py --arch xs    # DS-CNN-XS (32 channels, 3 DS blocks) - speed
+  Comparison set (same data, same MFCC, same int8 flow), see WAKEWORD_REPORT.md:
+  python train.py --arch ei      # Edge Impulse default KWS: 2x 1-D conv (8, 16) + pooling
+  python train.py --arch tiny    # TFLM micro_speech "tiny_conv": 1 conv 8@10x8/2 + FC
+  python train.py --arch cnn     # Hello Edge CNN-S style: 2 conv (28, 30) + FC 16/128
+  python train.py --arch tcres8  # TC-ResNet8 (Choi et al. 2019): temporal conv + residual
 
 Steps: waveform augmentation -> C front end (fe.py) -> Keras training ->
 full-integer int8 TFLite (CMSIS-NN kernels on the MCU) -> evaluation of the
@@ -20,6 +25,10 @@ import fe
 from make_dataset import NOISE, OUT, SR, read_wav
 
 os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
+try:  # GPU venv (TF 2.10 + pip CUDA 11): put the CUDA DLLs on the search path first
+    import gpu_env  # noqa: F401
+except ImportError:
+    pass
 import tensorflow as tf  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
@@ -103,6 +112,10 @@ def featurise(items, aug, reps, n_silence, rng, augment=True):
 
 
 # ---------------------------------------------------------------- model
+ARCH_NAMES = {"s": "ds-cnn-s", "xs": "ds-cnn-xs", "ei": "ei-conv1d", "tiny": "tiny-conv",
+              "cnn": "cnn-s", "tcres8": "tc-resnet8"}
+
+
 def ds_cnn(arch, batch=None):
     ch, blocks = {"s": (64, 4), "xs": (32, 3)}[arch]
     L = tf.keras.layers
@@ -121,7 +134,76 @@ def ds_cnn(arch, batch=None):
     x = L.AveragePooling2D(pool_size=(x.shape[1], x.shape[2]))(x)
     x = L.Reshape((ch,))(x)  # static shape: Flatten() would emit SHAPE/STRIDED_SLICE ops
     out = L.Dense(len(LABELS), activation="softmax")(x)
-    return tf.keras.Model(inp, out, name=f"ds_cnn_{arch}")
+    return tf.keras.Model(inp, out, name=f"kws_{arch}")
+
+
+def ei_conv1d(batch=None):
+    """Edge Impulse 'Keyword spotting' default: conv1d 8 -> pool -> conv1d 16 -> pool -> dense.
+    Written with (k,1) Conv2D on a (T, 1, C) view so it lowers to CONV_2D + MAX_POOL_2D."""
+    L = tf.keras.layers
+    inp = L.Input((fe.NFRAMES, fe.NMFCC, 1), batch_size=batch)
+    x = L.Reshape((fe.NFRAMES, 1, fe.NMFCC))(inp)
+    for ch in (8, 16):
+        x = L.Conv2D(ch, (3, 1), padding="same", activation="relu")(x)
+        x = L.MaxPooling2D((2, 1), padding="same")(x)
+        x = L.Dropout(0.25)(x)
+    x = L.Reshape((x.shape[1] * x.shape[3],))(x)
+    out = L.Dense(len(LABELS), activation="softmax")(x)
+    return tf.keras.Model(inp, out, name="kws_ei")
+
+
+def tiny_conv(batch=None):
+    """TFLM micro_speech 'tiny_conv': one 8-filter 10x8 conv, stride 2, then FC."""
+    L = tf.keras.layers
+    inp = L.Input((fe.NFRAMES, fe.NMFCC, 1), batch_size=batch)
+    x = L.Conv2D(8, (10, 8), strides=(2, 2), padding="same", activation="relu")(inp)
+    x = L.Dropout(0.2)(x)
+    x = L.Reshape((x.shape[1] * x.shape[2] * x.shape[3],))(x)
+    out = L.Dense(len(LABELS), activation="softmax")(x)
+    return tf.keras.Model(inp, out, name="kws_tiny")
+
+
+def cnn_s(batch=None):
+    """Hello Edge (Zhang et al. 2017) CNN-S style: conv 28@10x4, conv 30@10x4, low-rank FC."""
+    L = tf.keras.layers
+    inp = L.Input((fe.NFRAMES, fe.NMFCC, 1), batch_size=batch)
+    x = L.Conv2D(28, (10, 4), strides=(2, 2), padding="same", use_bias=False)(inp)
+    x = L.ReLU()(L.BatchNormalization()(x))
+    x = L.Conv2D(30, (10, 4), strides=(2, 1), padding="same", use_bias=False)(x)
+    x = L.ReLU()(L.BatchNormalization()(x))
+    x = L.Dropout(0.2)(x)
+    x = L.Reshape((x.shape[1] * x.shape[2] * x.shape[3],))(x)
+    x = L.Dense(16)(x)                 # linear low-rank layer
+    x = L.Dense(128, activation="relu")(x)
+    out = L.Dense(len(LABELS), activation="softmax")(x)
+    return tf.keras.Model(inp, out, name="kws_cnn")
+
+
+def tc_resnet8(batch=None):
+    """TC-ResNet8 (Choi et al. 2019, width 1.0): MFCC as channels, 9x1 temporal convs."""
+    L = tf.keras.layers
+    inp = L.Input((fe.NFRAMES, fe.NMFCC, 1), batch_size=batch)
+    x = L.Reshape((fe.NFRAMES, 1, fe.NMFCC))(inp)
+    x = L.Conv2D(16, (3, 1), padding="same", use_bias=False)(x)
+    for ch in (24, 32, 48):
+        y = L.Conv2D(ch, (9, 1), strides=(2, 1), padding="same", use_bias=False)(x)
+        y = L.ReLU()(L.BatchNormalization()(y))
+        y = L.Conv2D(ch, (9, 1), padding="same", use_bias=False)(y)
+        y = L.BatchNormalization()(y)
+        sc = L.Conv2D(ch, (1, 1), strides=(2, 1), use_bias=False)(x)
+        sc = L.ReLU()(L.BatchNormalization()(sc))
+        x = L.ReLU()(L.Add()([y, sc]))
+    x = L.Dropout(0.2)(x)
+    x = L.AveragePooling2D(pool_size=(x.shape[1], 1))(x)
+    x = L.Reshape((x.shape[3],))(x)
+    out = L.Dense(len(LABELS), activation="softmax")(x)
+    return tf.keras.Model(inp, out, name="kws_tcres8")
+
+
+def build(arch, batch=None):
+    if arch in ("s", "xs"):
+        return ds_cnn(arch, batch)
+    return {"ei": ei_conv1d, "tiny": tiny_conv, "cnn": cnn_s, "tcres8": tc_resnet8}[arch](batch)
 
 
 def macs(model):
@@ -141,7 +223,7 @@ def macs(model):
 # ---------------------------------------------------------------- int8
 def to_int8(model, rep):
     # batch fixed to 1: a dynamic batch makes the converter emit SHAPE/PACK ops
-    fixed = ds_cnn(model.name.split("_")[-1], batch=1)
+    fixed = build(model.name.split("_", 1)[1], batch=1)
     fixed.set_weights(model.get_weights())
     conv = tf.lite.TFLiteConverter.from_keras_model(fixed)
     conv.optimizations = [tf.lite.Optimize.DEFAULT]
@@ -152,8 +234,8 @@ def to_int8(model, rep):
     blob = conv.convert()
     it = tf.lite.Interpreter(model_content=blob)
     used = {d["op_name"] for d in it._get_ops_details()}
-    allowed = {"CONV_2D", "DEPTHWISE_CONV_2D", "AVERAGE_POOL_2D", "RESHAPE",
-               "FULLY_CONNECTED", "SOFTMAX"}
+    allowed = {"CONV_2D", "DEPTHWISE_CONV_2D", "AVERAGE_POOL_2D", "MAX_POOL_2D", "ADD",
+               "RESHAPE", "FULLY_CONNECTED", "SOFTMAX"}
     assert used <= allowed, f"ops not registered in kws_engine.cpp: {used - allowed}"
     return blob
 
@@ -208,14 +290,17 @@ def export(arch, blob, m8, report):
     d = HERE.parent / "pico2" / "firmware" / "src" / "voice" / "model"
     d.mkdir(exist_ok=True)
     (d / f"kws_{arch}.cc").write_text(
-        f"// Generated by embedded/kws/train.py - DS-CNN-{arch.upper()} \"Hey Edgie\", int8.\n"
+        f"// Generated by embedded/kws/train.py - {ARCH_NAMES[arch]} \"Hey Edgie\", int8.\n"
         f"// test accuracy {report['test']['accuracy']:.4f}, {report['macs']} MACs, "
         f"{report['params']} parameters.\n#include <stdalign.h>\n#include \"kws_models.h\"\n\n"
         + c_array(f"kws_model_{arch}", blob)
         + f"const struct kws_model_info kws_model_{arch}_info = {{\n"
-          f"  \"ds-cnn-{arch}\", kws_model_{arch}, {len(blob)},\n"
+          f"  \"{ARCH_NAMES[arch]}\", kws_model_{arch}, {len(blob)},\n"
           f"  {m8.in_scale:.9g}f, {int(m8.in_zp)}, {m8.out_scale:.9g}f, {int(m8.out_zp)},\n"
           f"  {report['macs']}u, {report['params']}u,\n}};\n", encoding="utf-8")
+
+
+BENCH_ORDER = ["s", "xs", "ei", "tiny", "cnn", "tcres8"]  # = kws_bench_models[] on the MCU
 
 
 def export_bench_clips(m_by_arch, rng):
@@ -240,9 +325,10 @@ def export_bench_clips(m_by_arch, rng):
         name = f.stem if f else "factory_noise"
         lines.append(f"static const int16_t clip{k}[16000] = {{" +
                      ",".join(str(int(v)) for v in pcm[:SR]) + "};")
-        entries.append(f"  {{\"{name[:40]}\", {lab}, clip{k}, "
-                       f"{{{','.join(map(str, exp.get('s', [0, 0, 0])))}}}, "
-                       f"{{{','.join(map(str, exp.get('xs', [0, 0, 0])))}}}}},")
+        rows = ", ".join("{" + ",".join(map(str, exp.get(a, [0, 0, 0]))) + "}" for a in BENCH_ORDER)
+        entries.append(f"  {{\"{name[:40]}\", {lab}, clip{k}, {{{rows}}}}},")
+    lines.append("const struct kws_model_info *const kws_bench_models[KWS_BENCH_NMODELS] = {\n" +
+                 ",\n".join(f"  &kws_model_{a}_info" for a in BENCH_ORDER) + "\n};")
     lines.append("const struct kws_bench_clip kws_bench_clips[] = {\n" + "\n".join(entries) + "\n};")
     lines.append(f"const unsigned int kws_bench_clip_count = {len(pick)};")
     (d / "kws_bench_clips.cc").write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -250,11 +336,17 @@ def export_bench_clips(m_by_arch, rng):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--arch", default="s", choices=["s", "xs"])
+    ap.add_argument("--arch", default="s", choices=list(ARCH_NAMES))
     ap.add_argument("--epochs", type=int, default=30)
     ap.add_argument("--thr", type=float, default=0.8)
     ap.add_argument("--bench-clips", action="store_true")
+    ap.add_argument("--no-export", action="store_true",
+                    help="trial run: write artifacts/trial_* only, keep the firmware models")
     a = ap.parse_args()
+    gpus = tf.config.list_physical_devices("GPU")
+    for g in gpus:
+        tf.config.experimental.set_memory_growth(g, True)
+    print("TensorFlow", tf.__version__, "on", "GPU " + gpus[0].name if gpus else "CPU only")
     rng = np.random.default_rng(42)
     tf.keras.utils.set_random_seed(42)
     ART.mkdir(exist_ok=True)
@@ -274,7 +366,7 @@ def main():
         print(f"features in {time.time() - t0:.0f} s")
     print("train", np.bincount(ytr), "val", np.bincount(yva), "test", np.bincount(yte))
 
-    model = ds_cnn(a.arch)
+    model = build(a.arch)
     n_macs, n_params = macs(model), model.count_params()
     print(f"{model.name}: {n_params} params, {n_macs} MACs")
     cw = {i: len(ytr) / (3 * c) for i, c in enumerate(np.bincount(ytr))}
@@ -286,8 +378,9 @@ def main():
     train_s = time.time() - t0
 
     blob = to_int8(model, Xtr[rng.choice(len(Xtr), 500, replace=False)])
-    (ART / f"kws_{a.arch}.tflite").write_bytes(blob)
-    model.save(ART / f"kws_{a.arch}.keras")
+    pre = "trial_" if a.no_export else ""
+    (ART / f"{pre}kws_{a.arch}.tflite").write_bytes(blob)
+    model.save_weights(str(ART / f"{pre}kws_{a.arch}.weights.h5"))
     m8 = Int8Model(blob)
     float_acc = float(model.evaluate(Xte, yte, verbose=0)[1])
     rep = {"arch": a.arch, "params": int(n_params), "macs": int(n_macs),
@@ -297,12 +390,16 @@ def main():
            "val": evaluate(m8, Xva, yva, a.thr), "test": evaluate(m8, Xte, yte, a.thr),
            "input_quant": [float(m8.in_scale), int(m8.in_zp)],
            "output_quant": [float(m8.out_scale), int(m8.out_zp)]}
-    (ART / f"report_{a.arch}.json").write_text(json.dumps(rep, indent=1))
+    rep["device"] = "GPU" if gpus else "CPU"
+    rep["tensorflow"] = tf.__version__
+    (ART / f"{pre}report_{a.arch}.json").write_text(json.dumps(rep, indent=1))
     print(json.dumps({k: v for k, v in rep.items() if k != "val_acc_curve"}, indent=1))
+    if a.no_export:
+        return
     export(a.arch, blob, m8, rep)
     if a.bench_clips:
         ms = {}
-        for arch in ["s", "xs"]:
+        for arch in BENCH_ORDER:
             p = ART / f"kws_{arch}.tflite"
             if p.exists():
                 ms[arch] = Int8Model(p.read_bytes())

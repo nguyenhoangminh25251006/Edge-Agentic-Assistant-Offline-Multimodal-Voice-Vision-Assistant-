@@ -28,8 +28,8 @@ static uint32_t us(uint32_t cyc)
 static const char *const cls[] = { "silence", "unknown", "WAKE" };
 static int16_t clip_ram[KWS_WINDOW];
 
-static void bench_model(const struct shell *sh, const struct kws_model_info *m, bool is_s,
-			bool in_ram)
+static void bench_model(const struct shell *sh, const struct kws_model_info *m, int idx,
+			bool in_ram, bool verbose)
 {
 	static float mf[KWS_NMFCC];
 	static int8_t q[KWS_INPUT_BYTES];
@@ -46,10 +46,10 @@ static void bench_model(const struct shell *sh, const struct kws_model_info *m, 
 		    (unsigned)kws_engine_arena_used());
 	for (unsigned int c = 0; c < kws_bench_clip_count; c++) {
 		const struct kws_bench_clip *k = &kws_bench_clips[c];
-		const int8_t *exp = is_s ? k->expected_s : k->expected_xs;
+		const int8_t *exp = k->expected[idx];
 		int8_t out[3];
 
-		/* No irq_lock / sched_lock here: the 200 Hz control loop, the safety
+		/* No irq_lock / sched_lock here: the control loop, the safety
 		 * thread and the watchdog must keep running during a benchmark (the
 		 * belt may be live). min = time without preemption. */
 		/* live audio sits in SRAM: copy the clip out of flash first */
@@ -90,7 +90,7 @@ static void bench_model(const struct shell *sh, const struct kws_model_info *m, 
 		ok += best == k->label;
 		int pw = (int)lrintf((out[2] - m->out_zp) * m->out_scale * 100.0f);
 
-		if (in_ram) /* per-clip lines once per model */
+		if (verbose)
 			shell_print(sh, "  %-36s truth %-7s -> %-7s  p(wake) %3d%%  |int8 - host| %u",
 			    k->name, cls[k->label], cls[best], pw, d);
 	}
@@ -119,11 +119,12 @@ static int cmd_bench(const struct shell *sh, size_t argc, char **argv)
 	kws_pause(1);
 	bool verbose = argc > 1 && argv[1][0] == 'v';
 
-	ARG_UNUSED(verbose);
-	bench_model(sh, &kws_model_s_info, true, false);
-	bench_model(sh, &kws_model_s_info, true, true);
-	bench_model(sh, &kws_model_xs_info, false, false);
-	bench_model(sh, &kws_model_xs_info, false, true);
+	/* every model with its weights in SRAM (as the live pipeline runs it),
+	 * then the chosen model from XIP flash for reference */
+	for (int i = 0; i < KWS_BENCH_NMODELS; i++) {
+		bench_model(sh, kws_bench_models[i], i, true, verbose);
+	}
+	bench_model(sh, kws_bench_models[0], 0, false, false);
 	(void)kws_use_model(kws_selected_model());
 	kws_pause(0);
 	return 0;

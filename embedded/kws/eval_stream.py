@@ -130,6 +130,7 @@ def main():
     ap.add_argument("--infer-ms", type=float, default=None,
                     help="MCU inference time added to the latency (default: measured S 65, XS 24)")
     ap.add_argument("--tag", default="")
+    ap.add_argument("--thrs", type=int, nargs="+", default=[50, 60, 70, 80, 90, 95, 97, 98, 99])
     a = ap.parse_args()
     infer = a.infer_ms if a.infer_ms is not None else {"s": 65.3, "xs": 24.1}.get(a.arch, 0.0)
     m8 = Int8Model((ART / f"kws_{a.arch}.tflite").read_bytes())
@@ -142,7 +143,7 @@ def main():
     res = {"arch": a.arch, "stride": a.stride, "smooth": a.smooth,
            "mixed_stream_minutes": round(hours * 60, 1), "n_wake": len(spans), "sweep": []}
     # one pass with threshold 0 to log scores, then sweep thresholds offline
-    for thr in [50, 60, 70, 80, 90, 95]:
+    for thr in a.thrs:
         dets, runs, gated, _ = run_pipeline(pcm, m8, thr, a.stride, a.smooth)
         hits, fa, lat = score_stream(dets, spans)
         lat_ms = np.array(lat) * 1000 + infer  # WAKE leaves the MCU after the inference
