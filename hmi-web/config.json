@@ -1,0 +1,113 @@
+{
+  "station": {
+    "id": "CVY001",
+    "name": "PCB Inspection Conveyor",
+    "host": "127.0.0.1"
+  },
+  "stations": [
+    {
+      "id": "CVY001",
+      "name": "PCB Inspection Conveyor",
+      "host": "127.0.0.1"
+    }
+  ],
+  "operator": "Operator",
+  "sensors": [
+    {
+      "id": "motor_driver",
+      "label": "Motor Driver"
+    },
+    {
+      "id": "rotary_encoder",
+      "label": "Rotary Encoder"
+    },
+    {
+      "id": "photoelectric",
+      "label": "Photoelectric Sensor"
+    },
+    {
+      "id": "current_sensor",
+      "label": "Current Sensor"
+    },
+    {
+      "id": "temperature_sensor",
+      "label": "Temperature Sensor"
+    }
+  ],
+  "speed_limits": {
+    "min_mms": 50,
+    "max_mms": 250,
+    "step_mms": 10
+  },
+  "thresholds": {
+    "motor_current_limit_a": 2.5,
+    "motor_temp_limit_c": 80.0,
+    "default_setpoint_mms": 120
+  },
+  "calibration": {
+    "voice_sensitivity_pct": 85,
+    "defect_threshold_pct": 80,
+    "tts_enabled": true
+  },
+  "calibration_bounds": {
+    "voice_min_pct": 50,
+    "voice_max_pct": 95,
+    "defect_min_pct": 50,
+    "defect_max_pct": 95
+  },
+  "diagnostics_defaults": {
+    "host_model": "Qualcomm QRB2210",
+    "ram_total_mb": 4096,
+    "storage_total_gb": 32,
+    "containers": [],
+    "bridge_transport": "Arduino Bridge RPC",
+    "heartbeat_base_label": "200 Hz Base",
+    "rtt_limit_ms": 15.0,
+    "command_ttl_ms": 200,
+    "link_loss_timeout_ms": 300,
+    "buffer_size_bytes": 4096,
+    "histogram_window_label": "last 10k frames",
+    "histogram_bins": [
+      "4.2ms",
+      "7.5ms",
+      "9.8ms",
+      "11.4ms",
+      "13.1ms",
+      "15.2ms",
+      "18.0ms",
+      ">20ms"
+    ],
+    "mcu_model": "STM32U585",
+    "mcu_io": [],
+    "power_rails": [
+      { "name": "MPU Core", "nominal_v": 1.8 },
+      { "name": "MCU Core", "nominal_v": 3.3 },
+      { "name": "Motor Power", "nominal_v": 24.0 }
+    ]
+  },
+  "cloud": {
+    "enabled": false,
+    "status": "deferred",
+    "sync_label": "Offline",
+    "note": "Cloud telemetry egress is deferred to Project B (CH-41)."
+  },
+  "updates": {
+    "enabled": false,
+    "note": "No Update Available"
+  },
+  "ipc": {
+    "hmi_sub_endpoint": null,
+    "ui_push_endpoint": null,
+    "db_path": null,
+    "stale_after_s": 3.0
+  },
+  "server": {
+    "host": "0.0.0.0",
+    "port": 8000,
+    "log_level": "INFO"
+  },
+  "app": {
+    "version": null,
+    "build": null
+  }
+}
