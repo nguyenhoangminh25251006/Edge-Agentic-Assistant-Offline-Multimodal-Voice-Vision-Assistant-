@@ -1,0 +1,49 @@
+# Configuration for PCB Inspector (MVP)
+model:
+  onnx_path: "exports/mobilenetv2_050_pcb_defects_obb_v1.0/mobilenetv2_050_pcb_defects_obb_v1.0.onnx"
+  version: "mobilenetv2_050_pcb_defects_obb_v1.0"
+  input_size: 64
+  ort_threads: 1                     # 1 thread matches <= 30 ms headroom rule
+
+camera:
+  device_index: 0                    # UVC camera index
+  width: 1280
+  height: 800
+  fps: 30
+  auto_exposure: 0.25
+  exposure: -6.0                     # Fixed exposure (tune on real lighting rig)
+  auto_wb: 0
+  wb_temperature: 4500
+
+trigger:
+  stable_frames: 5                   # Board must stay still for N frames
+  motion_diff_threshold: 4.0
+  min_board_area_ratio: 0.15
+  cooldown_s: 1.5
+
+alignment:
+  golden_image_path: "assets/golden_pcb.png"   # Thay bằng ảnh bo chuẩn thật của bạn
+  scale: 0.5                         # Half-resolution (640 x 400) for fast ORB
+  orb_features: 500
+  ratio_test: 0.75
+  ransac_reproj_thresh_px: 3.0
+  min_inliers: 18
+  max_reproj_err_px: 2.0
+  mask_slot_padding_px: 6
+  slot_crop_margin_px: 4
+
+decision:
+  default_missing_threshold: 0.50    # p_missing >= threshold -> MISSING
+  uncertain_band: 0.10               # [threshold - band, threshold + band] -> FAIL_REVIEW
+  classical_weight: 0.15
+  per_slot_thresholds: {}            # Thêm ngưỡng riêng từng slot sau khi calib nếu cần
+
+event:
+  event_type: "PCB_INSPECTION"
+  schema_version: "1.0"
+  board_type: "through_hole_kit_v1"
+
+# Khai báo tọa độ (x, y, w, h) các vùng cần kiểm tra trên ảnh golden_image_path.
+# Thay bằng tọa độ thật trên bo của bạn (ví dụ 1 slot CPU để test demo trước, sau đó thêm đủ các slot).
+slots:
+  - {id: "CPU", x: 520, y: 280, w: 120, h: 120}

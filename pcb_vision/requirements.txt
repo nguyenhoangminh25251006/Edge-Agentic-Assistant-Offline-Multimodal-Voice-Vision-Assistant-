@@ -1,0 +1,6 @@
+# Runtime dependencies for PCB Missing-Component Inspector (CPU-only, amd64 & arm64)
+# Dùng opencv-python trên laptop (có cửa sổ preview cv2.imshow); đổi sang opencv-python-headless khi deploy headless/Docker.
+opencv-python==4.10.0.84
+onnxruntime==1.19.2
+numpy==2.1.3
+PyYAML==6.0.2

@@ -1,0 +1,45 @@
+{
+  "model_arch": "mobilenetv2_050",
+  "dataset_version": "pcb_defects_obb_v1.0",
+  "input_size": 64,
+  "opset": 17,
+  "used_ops": [
+    "Add",
+    "Clip",
+    "Constant",
+    "Conv",
+    "Flatten",
+    "Gemm",
+    "GlobalAveragePool"
+  ],
+  "before_metrics": {
+    "Accuracy": 0.4932,
+    "Precision": 0.4528,
+    "Recall (Missing)": 0.2243,
+    "F1-Score": 0.3,
+    "ROC-AUC": 0.4719,
+    "False Alarm Rate": 0.2544
+  },
+  "after_metrics": {
+    "Accuracy": 0.7014,
+    "Precision": 0.634,
+    "Recall (Missing)": 0.9065,
+    "F1-Score": 0.7462,
+    "ROC-AUC": 0.7701,
+    "False Alarm Rate": 0.4912
+  },
+  "onnx_metrics": {
+    "Accuracy": 0.7014,
+    "Precision": 0.634,
+    "Recall (Missing)": 0.9065,
+    "F1-Score": 0.7462,
+    "ROC-AUC": 0.7701,
+    "False Alarm Rate": 0.4912
+  },
+  "per_slot_thresholds": {
+    "Dry_joint": 0.5,
+    "Incorrect_installation": 0.34,
+    "Short_circuit": 0.23,
+    "clean": 0.85
+  }
+}

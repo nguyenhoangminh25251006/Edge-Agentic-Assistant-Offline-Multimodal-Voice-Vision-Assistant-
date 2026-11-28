@@ -1,1 +1,29 @@
+# Python & Virtual Environments
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+.ipynb_checkpoints/
+
+# Raw & Generated Datasets
 datasets/
+Data/
+pcb_vision/dataset/
+pcb_vision/PCB_DATASET/
+pcb_vision/Defects.v*/
+pcb_vision/exports/**/int8_calibration_crops/
+
+# Large Model Weights, Caches & Local Build Artifacts
+*.pt
+*.pth
+*.gguf
+model_cache/
+llama.cpp/
+runs/
+results/
+results_pi/
+doc_paragraphs.txt
+
+# OS / Editor
+.DS_Store
+Thumbs.db

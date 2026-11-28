@@ -1,0 +1,7 @@
+,Before (Pretrained),After (Fine-tuned),Change
+Accuracy,0.4932,0.7014,0.2081
+Precision,0.4528,0.634,0.1812
+Recall (Missing),0.2243,0.9065,0.6822
+F1-Score,0.3,0.7462,0.4462
+ROC-AUC,0.4719,0.7701,0.2982
+False Alarm Rate,0.2544,0.4912,0.2368
